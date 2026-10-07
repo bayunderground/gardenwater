@@ -328,8 +328,8 @@ These apply to every phase:
 - **Tests:** `test_messages.py` — exact text for single plant, multi-plant, follow-up only, mixed; no forbidden phrasing ("you didn't water"); `test_telegram.py` — payload shape, error redaction.
 
 ### Phase 7 — Orchestration, CLI, logging
-- [ ] `app.py`: parse args → load config → init DB → fetch weather → for each plant read window + reminder state → `decide_plant` → record decisions → build one message → send (unless dry-run or already sent today, D12) → update reminder state only after successful send → send provider warning if needed → exit code.
-- [ ] Dry-run printout, human-readable, for example:
+- [x] `app.py`: parse args → load config → init DB → fetch weather → for each plant read window + reminder state → `decide_plant` → record decisions → build one message → send (unless dry-run or already sent today, D12) → update reminder state only after successful send → send provider warning if needed → exit code.
+- [x] Dry-run printout, human-readable (see `messages.dry_run_report`), for example:
   ```
   Plant: peach          Season: summer     Water need: high
   Rain last 7 days: 5.2 mm
@@ -339,7 +339,7 @@ These apply to every phase:
   Decision: WATER
   Reason: got 12% of target, below 65%; tomorrow 0.5 mm is under the 12 mm wait limit
   ```
-- [ ] Logging config (stdout, timestamps, `-v`); startup/season/provider/decision/telegram/final-status lines; redaction applied.
+- [x] Logging config (stdout, timestamps, `-v`); startup/season/provider/decision/telegram/final-status lines; redaction applied.
 - **Tests:** `test_app.py` with fake providers and fake Telegram — dry-run sends nothing and writes no decisions (#15); all providers failing → exit 1 + all-failed message (#14); Telegram failure → exit 3, no reminder state; three-day scenario (day 1 WATER, day 2 FOLLOW_UP, day 3 meaningful rain → NO_ACTION); same-day re-run sends nothing; provider-failure message sent once across two runs.
 
 ### Phase 8 — Docs and smoke test
