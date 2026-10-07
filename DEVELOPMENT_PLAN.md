@@ -37,6 +37,7 @@ Choices made where the brief was open. Change them here first, then in code.
 | D21 | **OpenWeather provider is disabled for now.** Live-tested 2026-10-07: One Call 4.0 `timeline/1day`, One Call 3.0 `onecall` and `day_summary` all answer HTTP 401 ("requires the separate One Call by Call subscription"); free `2.5/forecast` answered "Invalid API key" and has no daily history anyway. `gardenwater/weather/openweather.py` is a documented stub, **not registered** in the fallback chain (which is Open-Meteo → WeatherAPI). Re-enable path: subscribe the key → capture fixture → implement per `docs/api-notes.md` → register in `service.py`. | Do not build a provider that cannot run. "Missing API key = skipped" (D7) extends naturally to "provider unavailable = skipped". Two working providers keep v1 shippable. |
 | D22 | The worked example **Severe** and test-matrix row **#4** produce **FOLLOW_UP**, not `WATER`: by step 8 an open streak exists (`reminders_count ≥ 2` is what makes the case *severe*), and with ~5% of target there cannot be `meaningful_rain_mm` since the reminder inside the same window, so step 8 returns FOLLOW_UP. The tables' "WATER" meant "a watering message is sent" — both WATER and FOLLOW_UP notify. Table cells corrected below. | Step 8 of §2 is the authoritative rule; WATER-vs-FOLLOW_UP is only a label. FOLLOW_UP ("still appears to need watering") is also the honest wording for a repeated reminder. |
 | D23 | The provider protocol's `fetch()` also takes `missing_dates` — window days not yet persisted. WeatherAPI's free plan has no history range endpoint (api-notes.md), so it calls `/history.json` once per missing date; Open-Meteo ignores the argument (its archived forecast covers `past_days` in one call). | Keeps one uniform `fetch → WeatherData` interface while honouring the free-plan limit without a second code path in the service. |
+| D24 | The brief's exact texts for the provider-warning and all-failed messages are not in the repo, so they are minimal one-liners (user-chosen 2026-10-07): all-failed `⚠️ Garden watering check failed: no weather data available.` and provider warning `⚠️ <provider> failed: <error> (using fallback)` — error redacted, truncated to ~200 chars. Insufficient-data keeps the two-line text from §Messages. | Ambiguous requirement → simpler behaviour + assumption recorded (working agreement). Easy to reword in `messages.py` only. |
 
 ---
 
@@ -259,7 +260,7 @@ Peach
 Follow-up plants use `• Status: still appears to need watering` and
 `• No meaningful rain (X mm) since the previous reminder (YYYY-MM-DD)`.
 If every plant in the message is a follow-up, the header is `🌱 Garden watering reminder`.
-Provider warning and all-failed texts exactly as in the brief (error text redacted and truncated to ~200 chars).
+Provider warning and all-failed texts per D24 (error text redacted and truncated to ~200 chars).
 Insufficient data (D6): `⚠️ Garden watering check failed` + `Not enough recent weather data to decide.`
 Never use wording that claims the user did or did not water.
 

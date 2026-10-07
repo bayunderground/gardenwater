@@ -23,9 +23,17 @@ class FakeSession:
         self._responses = list(responses)
         self._exception = exception
         self.calls = []
+        self.methods = []
 
     def get(self, url, **kwargs):
+        return self._request("GET", url, kwargs)
+
+    def post(self, url, **kwargs):
+        return self._request("POST", url, kwargs)
+
+    def _request(self, method, url, kwargs):
         self.calls.append((url, kwargs))
+        self.methods.append(method)
         if self._exception is not None:
             raise self._exception
         if not self._responses:
