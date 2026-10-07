@@ -8,7 +8,7 @@ logs it and may send it to Telegram as-is.
 from __future__ import annotations
 
 from datetime import date
-from typing import Protocol, runtime_checkable
+from typing import Protocol, Sequence, runtime_checkable
 
 from gardenwater.weather.models import WeatherData
 
@@ -31,9 +31,19 @@ class WeatherProvider(Protocol):
         ...
 
     def fetch(
-        self, lat: float, lon: float, tz: str, today: date, past_days: int
+        self,
+        lat: float,
+        lon: float,
+        tz: str,
+        today: date,
+        past_days: int,
+        missing_dates: Sequence[date] = (),
     ) -> WeatherData:
         """Return history + today + tomorrow for the location.
+
+        `missing_dates` lists window days the caller has NOT persisted yet —
+        providers that must request history day-by-day (WeatherAPI free plan,
+        docs/api-notes.md) fetch only those; the rest may be ignored.
 
         Raises ProviderError on any problem (D7: timeout, network, HTTP, auth,
         malformed JSON, or missing today's/tomorrow's precipitation).

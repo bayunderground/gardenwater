@@ -36,7 +36,13 @@ class OpenMeteoProvider:
         return True  # no API key needed
 
     def fetch(
-        self, lat: float, lon: float, tz: str, today: date, past_days: int
+        self,
+        lat: float,
+        lon: float,
+        tz: str,
+        today: date,
+        past_days: int,
+        missing_dates=None,  # noqa: ARG002 — archived forecast covers the window
     ) -> WeatherData:
         # 1. Build request.
         params = {
