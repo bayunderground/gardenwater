@@ -36,6 +36,7 @@ Choices made where the brief was open. Change them here first, then in code.
 | D20 | Defaults live in **one** place (`DEFAULT_WATERING` at the top of `config.py`). `config.example.yaml` shows the full `watering:` section with the same values and comments; a test keeps them in sync. | Humans edit the YAML; code has no hidden numbers. |
 | D21 | **OpenWeather provider is disabled for now.** Live-tested 2026-10-07: One Call 4.0 `timeline/1day`, One Call 3.0 `onecall` and `day_summary` all answer HTTP 401 ("requires the separate One Call by Call subscription"); free `2.5/forecast` answered "Invalid API key" and has no daily history anyway. `gardenwater/weather/openweather.py` is a documented stub, **not registered** in the fallback chain (which is Open-Meteo → WeatherAPI). Re-enable path: subscribe the key → capture fixture → implement per `docs/api-notes.md` → register in `service.py`. | Do not build a provider that cannot run. "Missing API key = skipped" (D7) extends naturally to "provider unavailable = skipped". Two working providers keep v1 shippable. |
 | D22 | The worked example **Severe** and test-matrix row **#4** produce **FOLLOW_UP**, not `WATER`: by step 8 an open streak exists (`reminders_count ≥ 2` is what makes the case *severe*), and with ~5% of target there cannot be `meaningful_rain_mm` since the reminder inside the same window, so step 8 returns FOLLOW_UP. The tables' "WATER" meant "a watering message is sent" — both WATER and FOLLOW_UP notify. Table cells corrected below. | Step 8 of §2 is the authoritative rule; WATER-vs-FOLLOW_UP is only a label. FOLLOW_UP ("still appears to need watering") is also the honest wording for a repeated reminder. |
+| D23 | The provider protocol's `fetch()` also takes `missing_dates` — window days not yet persisted. WeatherAPI's free plan has no history range endpoint (api-notes.md), so it calls `/history.json` once per missing date; Open-Meteo ignores the argument (its archived forecast covers `past_days` in one call). | Keeps one uniform `fetch → WeatherData` interface while honouring the free-plan limit without a second code path in the service. |
 
 ---
 
@@ -311,9 +312,9 @@ These apply to every phase:
 - **Tests:** `test_watering.py` — #1–#9 plus examples A–E and Severe/Severe-low from the table; today's rain is counted in the window; scaled window with missing days; reminder streak reset by meaningful rain; zero target → NO_ACTION.
 
 ### Phase 4 — Weather providers
-- [ ] `weather/open_meteo.py`, `weatherapi.py` per `api-notes.md`. Each: `is_configured`, request with timeouts, status-code handling, parse → `WeatherData`, wrap every failure in `ProviderError` with a redacted short message. (`openweather.py` stays a disabled stub per D21 — implement only if the subscription lands.)
-- [ ] Missing today's or tomorrow's precipitation → `ProviderError`.
-- **Tests:** `test_weather_parsers.py` — fixture → expected `DailyWeather` values per provider; malformed JSON; missing field; HTTP 401/429/500 via fake session; keys never present in error text.
+- [x] `weather/open_meteo.py`, `weatherapi.py` per `api-notes.md`. Each: `is_configured`, request with timeouts, status-code handling, parse → `WeatherData`, wrap every failure in `ProviderError` with a redacted short message. (`openweather.py` stays a disabled stub per D21 — implement only if the subscription lands.)
+- [x] Missing today's or tomorrow's precipitation → `ProviderError`.
+- **Tests:** `test_open_meteo.py` + `test_weatherapi.py` (split per provider instead of one `test_weather_parsers.py`) — fixture → expected `DailyWeather` values per provider; malformed JSON; missing field; HTTP 401/429/500 via fake session; keys never present in error text.
 
 ### Phase 5 — Weather service (fallback + status)
 - [ ] `weather/service.py`: try providers in priority order, skip unconfigured, persist `history` + `today` (not forecast) to `weather_daily`, update `provider_status`, return `(WeatherData, failures)`.
