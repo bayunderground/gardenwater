@@ -1,0 +1,86 @@
+# garden-water configuration example
+#
+# Copy to config.yaml (gitignored) and edit for your garden.
+# Every setting has a plain-language comment; the `watering:` values below are
+# the built-in defaults (DEFAULT_WATERING in gardenwater/config.py) and a test
+# keeps this file in sync with the code.
+
+# Where the garden is. Coordinates are WGS84 decimal degrees.
+location:
+  latitude: 0.0
+  longitude: 0.0
+  # IANA timezone of the garden (not the server's!). "Today" and "tomorrow"
+  # are computed in this timezone, e.g. Europe/Berlin, Asia/Tashkent.
+  timezone: Europe/Berlin
+
+# Which months belong to which season. Each month 1-12 must appear in exactly
+# one season; the season decides which water_need / rain_target applies.
+season_calendar:
+  spring: [3, 4, 5]
+  summer: [6, 7, 8]
+  autumn: [9, 10, 11]
+  winter: [12, 1, 2]
+
+# Your plants. `type` and `count` are recorded but not used by the algorithm.
+plants:
+  - name: peach
+    type: fruit-tree
+    count: 1
+
+# Per plant, per season: how thirsty it is and how much rain it would ideally
+# get over a rolling 7 days (mm). This is an approximate gardener's number,
+# not a scientific irrigation requirement.
+water_requirements:
+  peach:
+    spring:
+      water_need: medium          # low | medium | high
+      rain_target_mm_7d: 30
+    summer:
+      water_need: high
+      rain_target_mm_7d: 40
+    autumn:
+      water_need: low
+      rain_target_mm_7d: 20
+    winter:
+      water_need: low
+      rain_target_mm_7d: 10
+
+# Optional: every threshold the algorithm uses. Omit the whole section to get
+# these exact defaults. Numbers are duplicated from DEFAULT_WATERING on purpose
+# so you can read and tune them here.
+watering:
+  # Size of the rain window: sum the last N days, today included.
+  recent_days: 7
+  # Rain at or above this (mm) since the reminder ends the streak.
+  meaningful_rain_mm: 5
+  # With fewer than N days of weather data in the window, the run aborts
+  # instead of guessing ("insufficient data").
+  min_history_days: 5
+
+  # Hot weather raises demand. factor = 1 + (mean tmax - threshold) * step,
+  # clamped to [1.0, max_factor]. With ET0 data, ET0/baseline is used instead.
+  heat_adjustment:
+    enabled: true
+    et0_baseline_mm_day: 3.0      # ET0 at/below this = normal demand
+    temp_threshold_c: 28          # mean daily max above this = extra demand
+    temp_step_per_c: 0.03         # +3% demand per °C above the threshold
+    max_factor: 1.5               # demand is never raised by more than 50%
+
+  # Per water_need: when to consider a plant dry, and how much forecast rain
+  # makes us wait one more day.
+  need_profiles:
+    low:
+      min_rain_fraction: 0.30            # water only if it got < 30% of target
+      skip_if_tomorrow_rain_mm: 5        # a light shower is enough to wait
+    medium:
+      min_rain_fraction: 0.50            # < 50% of target
+      skip_if_tomorrow_rain_mm: 8
+    high:
+      min_rain_fraction: 0.65            # < 65% of target
+      skip_if_tomorrow_rain_mm: 12       # waits only for a real soaking
+
+  # When a plant is in bad shape, require a bigger forecast before waiting.
+  severe:
+    rain_fraction: 0.15          # "bad shape" = got <= 15% of target
+    min_reminders: 2             # ...after at least this many reminders
+    wait_multiplier: 2.0         # ...then tomorrow's rain must be 2x larger
