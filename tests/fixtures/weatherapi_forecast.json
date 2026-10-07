@@ -1,0 +1,81 @@
+{
+ "location": {
+  "name": "Berlin",
+  "region": "Berlin",
+  "country": "Germany",
+  "lat": 52.517,
+  "lon": 13.4,
+  "tz_id": "Europe/Berlin",
+  "localtime": "2026-10-07 21:39"
+ },
+ "forecast": {
+  "forecastday": [
+   {
+    "date": "2026-10-07",
+    "day": {
+     "maxtemp_c": 22.1,
+     "maxtemp_f": 71.8,
+     "mintemp_c": 14.2,
+     "mintemp_f": 57.6,
+     "avgtemp_c": 17.9,
+     "avgtemp_f": 64.2,
+     "maxwind_mph": 8.9,
+     "maxwind_kph": 14.4,
+     "totalprecip_mm": 0.01,
+     "totalprecip_in": 0.0,
+     "totalsnow_cm": 0.0,
+     "avgvis_km": 10.0,
+     "avgvis_miles": 6.0,
+     "avghumidity": 57,
+     "daily_will_it_rain": 0,
+     "daily_chance_of_rain": 10,
+     "daily_will_it_snow": 0,
+     "daily_chance_of_snow": 0,
+     "condition": {
+      "text": "Overcast",
+      "icon": "//cdn.weatherapi.com/weather/64x64/day/122.png",
+      "code": 1009
+     },
+     "uv": 2.2,
+     "avgwetbulb_c": 12.9,
+     "avgwetbulb_f": 55.2,
+     "maxwetbulb_c": 14.3,
+     "maxwetbulb_f": 57.7
+    }
+   },
+   {
+    "date": "2026-10-08",
+    "day": {
+     "maxtemp_c": 16.2,
+     "maxtemp_f": 61.2,
+     "mintemp_c": 10.4,
+     "mintemp_f": 50.7,
+     "avgtemp_c": 13.8,
+     "avgtemp_f": 56.9,
+     "maxwind_mph": 16.6,
+     "maxwind_kph": 26.6,
+     "totalprecip_mm": 4.87,
+     "totalprecip_in": 0.19,
+     "totalsnow_cm": 0.0,
+     "avgvis_km": 8.8,
+     "avgvis_miles": 5.0,
+     "avghumidity": 72,
+     "daily_will_it_rain": 1,
+     "daily_chance_of_rain": 77,
+     "daily_will_it_snow": 0,
+     "daily_chance_of_snow": 0,
+     "condition": {
+      "text": "Overcast",
+      "icon": "//cdn.weatherapi.com/weather/64x64/day/122.png",
+      "code": 1009
+     },
+     "uv": 0.4,
+     "avgwetbulb_c": 11.1,
+     "avgwetbulb_f": 51.9,
+     "maxwetbulb_c": 15.0,
+     "maxwetbulb_f": 58.9
+    }
+   }
+  ]
+ }
+}
