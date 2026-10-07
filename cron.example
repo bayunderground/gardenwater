@@ -7,3 +7,8 @@
 # working directory does not matter.
 
 0 19 * * * /path/to/garden-water/.venv/bin/python /path/to/garden-water/garden_water.py >> /path/to/garden-water/garden-water.log 2>&1
+
+# Optional: nightly cleanup of old history (see README §Pruning old records).
+# Keeps the last 30 days of weather_daily + watering_decisions; never touches
+# reminder_state or provider_status. No Telegram, no weather fetch, exit 0.
+15 20 * * * /path/to/garden-water/.venv/bin/python /path/to/garden-water/garden_water.py --prune >> /path/to/garden-water/garden-water.log 2>&1

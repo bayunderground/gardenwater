@@ -20,8 +20,8 @@ cp .env.example .env                   # fill in Telegram (and optional weather)
 .venv/bin/python garden_water.py                   # normal run (what cron runs)
 ```
 
-Flags: `--config PATH` · `--db PATH` · `--dry-run` · `--today YYYY-MM-DD`
-(testing only) · `-v`.
+Flags: `--config PATH` · `--db PATH` · `--dry-run` · `--prune
+[--keep-days N]` · `--today YYYY-MM-DD` (testing only) · `-v`.
 
 Exit codes: `0` ok · `1` all weather providers failed / insufficient data ·
 `2` config error · `3` Telegram send failed.
@@ -184,6 +184,29 @@ a key is passed through `redact()` before logging or sending.
 - `.env`, `config.yaml` and `garden.db` default to the directory of
   `garden_water.py`, so the working directory cron uses does not matter.
 - A copyable line lives in `cron.example`.
+
+## Pruning old records
+
+`weather_daily` and `watering_decisions` grow by about a row per day. Clean
+them up with the standalone prune mode — no weather fetch, no Telegram, exit 0:
+
+```bash
+.venv/bin/python garden_water.py --prune                 # keep the last 30 days
+.venv/bin/python garden_water.py --prune --keep-days 90  # keep the last 90 days
+```
+
+- Keeps the newest `--keep-days` days (default 30), **never fewer than
+  `recent_days`** (default 7), so the rain window can't be destroyed by an
+  over-eager value.
+- `reminder_state` (open streaks) and `provider_status` (outage bookkeeping)
+  are current state and are **never** pruned.
+- `--today YYYY-MM-DD` works with `--prune` too (testing only).
+
+Cron example — nightly after the watering run:
+
+```cron
+15 20 * * * /path/to/garden-water/.venv/bin/python /path/to/garden-water/garden_water.py --prune >> /path/to/garden-water/garden-water.log 2>&1
+```
 
 ## Troubleshooting
 

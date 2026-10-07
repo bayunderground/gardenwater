@@ -60,7 +60,7 @@ python -m venv .venv && .venv/bin/pip install -r requirements.txt
 .venv/bin/python garden_water.py               # normal run (cron)
 ```
 
-Flags: `--config PATH`, `--db PATH`, `--dry-run`, `--today YYYY-MM-DD` (testing only), `-v`.
+Flags: `--config PATH`, `--db PATH`, `--dry-run`, `--prune [--keep-days N]` (cron maintenance: delete old `weather_daily`/`watering_decisions` rows and exit 0; never touches `reminder_state`/`provider_status`), `--today YYYY-MM-DD` (testing only), `-v`.
 Exit codes: `0` ok · `1` all weather providers failed / insufficient data · `2` config error · `3` Telegram send failed.
 
 ## Design rules
