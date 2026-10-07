@@ -35,6 +35,7 @@ Choices made where the brief was open. Change them here first, then in code.
 | D19 | **Rain since the reminder** counts dates *after* the reminder date through today. | The reminder is sent in the evening, so rain on the reminder day mostly fell before it. |
 | D20 | Defaults live in **one** place (`DEFAULT_WATERING` at the top of `config.py`). `config.example.yaml` shows the full `watering:` section with the same values and comments; a test keeps them in sync. | Humans edit the YAML; code has no hidden numbers. |
 | D21 | **OpenWeather provider is disabled for now.** Live-tested 2026-10-07: One Call 4.0 `timeline/1day`, One Call 3.0 `onecall` and `day_summary` all answer HTTP 401 ("requires the separate One Call by Call subscription"); free `2.5/forecast` answered "Invalid API key" and has no daily history anyway. `gardenwater/weather/openweather.py` is a documented stub, **not registered** in the fallback chain (which is Open-Meteo → WeatherAPI). Re-enable path: subscribe the key → capture fixture → implement per `docs/api-notes.md` → register in `service.py`. | Do not build a provider that cannot run. "Missing API key = skipped" (D7) extends naturally to "provider unavailable = skipped". Two working providers keep v1 shippable. |
+| D22 | The worked example **Severe** and test-matrix row **#4** produce **FOLLOW_UP**, not `WATER`: by step 8 an open streak exists (`reminders_count ≥ 2` is what makes the case *severe*), and with ~5% of target there cannot be `meaningful_rain_mm` since the reminder inside the same window, so step 8 returns FOLLOW_UP. The tables' "WATER" meant "a watering message is sent" — both WATER and FOLLOW_UP notify. Table cells corrected below. | Step 8 of §2 is the authoritative rule; WATER-vs-FOLLOW_UP is only a label. FOLLOW_UP ("still appears to need watering") is also the honest wording for a repeated reminder. |
 
 ---
 
@@ -144,7 +145,7 @@ rather than a model. Forecasts tend to overstate light rain, hence `high` needs 
 | C | summer, low, 8/40, tomorrow 12 | 0.20 | 0.30 | 12 ≥ 5 | POSTPONE |
 | D | open reminder, rain since < 5 mm, tomorrow 0 | low | — | 0 < wait | FOLLOW_UP |
 | E | open reminder, low, tomorrow 12 | low | — | 12 ≥ 5 | POSTPONE |
-| Severe | high, fraction 0.05, 2 reminders, tomorrow 14 | 0.05 | 0.65 | 14 < 12×2=24 | WATER (without severe it would POSTPONE: 14 ≥ 12) |
+| Severe | high, fraction 0.05, 2 reminders, tomorrow 14 | 0.05 | 0.65 | 14 < 12×2=24 | FOLLOW_UP (message sent; "WATER" before D22 correction. Without severe it would POSTPONE: 14 ≥ 12) |
 | Severe-low | low, fraction 0.05, 3 reminders, tomorrow 12 | 0.05 | 0.30 | 12 ≥ 5×2=10 | POSTPONE |
 
 ---
@@ -354,7 +355,7 @@ These apply to every phase:
 | 1 | enough rain → NO_ACTION | test_watering |
 | 2 | little rain + dry tomorrow → WATER | test_watering |
 | 3 | little rain + rain tomorrow + low need → POSTPONE | test_watering |
-| 4 | high need + severe + modest rain tomorrow → WATER | test_watering |
+| 4 | high need + severe + modest rain tomorrow → WATER (D22: FOLLOW_UP with open streak — message sent) | test_watering |
 | 5 | earlier reminder + dry + still dry → FOLLOW_UP | test_watering |
 | 6 | reminder + rain tomorrow + low need → POSTPONE | test_watering |
 | 7 | hot weather raises demand | test_watering |
