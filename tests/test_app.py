@@ -89,7 +89,8 @@ def seed_days(before: date, count: int = 5) -> list[date]:
     return [before - timedelta(days=i) for i in range(count, 0, -1)]
 
 
-def test_dry_run_sends_nothing_and_writes_no_decisions(config, env, tmp_path):
+def test_dry_run_sends_nothing_and_writes_no_decisions(config, env, tmp_path,
+                                                       capsys):
     db = tmp_path / "garden.db"
     send = FakeSend()
     provider = FakeProvider(data=dry_weather(DAY1, seed_days(DAY1)))
@@ -99,6 +100,10 @@ def test_dry_run_sends_nothing_and_writes_no_decisions(config, env, tmp_path):
 
     assert exit_code == 0
     assert send.calls == []
+    out = capsys.readouterr().out
+    assert "Decision: WATER" in out
+    assert "Reason:" in out
+    assert "nothing sent, nothing written" in out
     conn = connect(db)
     init_schema(conn)
     assert decisions_for_date(conn, DAY1) == []

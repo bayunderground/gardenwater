@@ -35,12 +35,18 @@ from gardenwater.database import (
 )
 from gardenwater.messages import (
     all_failed_message,
+    dry_run_report,
     insufficient_data_message,
     provider_warning,
     watering_message,
 )
 from gardenwater.models import Decision, PlantDecision, ReminderState
-from gardenwater.telegram import TelegramError, send_message
+from gardenwater.telegram import (
+    TelegramError,
+    require_chat_id as telegram_require_chat_id,
+    require_token as telegram_require_token,
+    send_message,
+)
 from gardenwater.weather.base import WeatherProvider
 from gardenwater.weather.open_meteo import OpenMeteoProvider
 from gardenwater.weather.service import AllProvidersFailed, fetch_weather
@@ -144,7 +150,7 @@ def run(
 
     # 3. Dry-run: show everything, write nothing decision-wise, send nothing.
     if dry_run:
-        print(_dry_run_text(config, decisions, tomorrow_mm))
+        print(dry_run_report(config, decisions, tomorrow_mm))
         log.info("dry run complete (no message, no decisions, no reminders)")
         return 0
 
@@ -159,7 +165,7 @@ def run(
     if any(d.notifies for d in decisions) and not notification_sent_on(conn, today):
         text = watering_message(decisions, _reminders_for(conn, decisions))
         try:
-            send(_telegram_token(), _telegram_chat_id(), text)
+            send(telegram_require_token(), telegram_require_chat_id(), text)
         except TelegramError as exc:
             mark_notifications(conn, today, "failed")
             log.error("telegram: watering message failed: %s", exc)
@@ -175,7 +181,7 @@ def run(
             provider_warning(f.provider, f.error) for f in report.warnings
         )
         try:
-            send(_telegram_token(), _telegram_chat_id(), text)
+            send(telegram_require_token(), telegram_require_chat_id(), text)
         except TelegramError as exc:
             log.error("telegram: provider warning failed: %s", exc)
             return 3
@@ -253,58 +259,13 @@ def _mark_notified(conn, provider: str) -> None:
         )
 
 
-# --- dry-run printout --------------------------------------------------------
-
-
-def _dry_run_text(config: AppConfig, decisions: Sequence[PlantDecision],
-                  tomorrow_mm: float) -> str:
-    blocks: list[str] = []
-    for decision in decisions:
-        requirement = config.requirement(decision.plant, decision.season)
-        profile = config.thresholds.profile(decision.water_need)
-        target = requirement.rain_target_mm_7d
-        heat = (
-            f" (×{decision.heat_factor:.2f} for heat = "
-            f"{decision.effective_target_mm:g} mm)"
-            if decision.heat_factor != 1.0 else ""
-        )
-        blocks.append(
-            f"Plant: {decision.plant:<18} Season: {decision.season:<8} "
-            f"Water need: {decision.water_need}\n"
-            f"Rain last 7 days: {decision.rain_7d_mm:g} mm\n"
-            f"Target: {target:g} mm{heat}\n"
-            f"Plant got {decision.rain_fraction:.0%} of its target; it gets "
-            f"watered below {profile.min_rain_fraction:.0%}\n"
-            f"Tomorrow rain: {tomorrow_mm:g} mm (waits only at "
-            f"{profile.skip_if_tomorrow_rain_mm:g} mm or more)\n"
-            f"Decision: {decision.decision}\n"
-            f"Reason: {decision.reason}"
-        )
-    header = "— dry run: nothing sent, nothing written —\n"
-    return header + "\n\n" + "\n\n".join(blocks) + "\n"
-
-
 # --- telegram plumbing -------------------------------------------------------
-
-
-def _telegram_token() -> str:
-    token = os.environ.get("TELEGRAM_BOT_TOKEN", "")
-    if not token:
-        raise TelegramError("telegram: TELEGRAM_BOT_TOKEN is not set")
-    return token
-
-
-def _telegram_chat_id() -> str:
-    chat_id = os.environ.get("TELEGRAM_CHAT_ID", "")
-    if not chat_id:
-        raise TelegramError("telegram: TELEGRAM_CHAT_ID is not set")
-    return chat_id
 
 
 def _try_send(send: SendFn, text: str, what: str) -> None:
     """Best-effort send for error messages; failures are logged, never raised."""
     try:
-        send(_telegram_token(), _telegram_chat_id(), text)
+        send(telegram_require_token(), telegram_require_chat_id(), text)
     except TelegramError as exc:
         log.error("telegram: %s message failed: %s", what, exc)
 

@@ -8,8 +8,12 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from datetime import date
+from typing import TYPE_CHECKING
 
 from gardenwater.models import Decision, PlantDecision, ReminderState
+
+if TYPE_CHECKING:
+    from gardenwater.config import AppConfig
 
 WATERING_HEADER = "🌱 Garden watering needed"
 FOLLOW_UP_HEADER = "🌱 Garden watering reminder"
@@ -76,3 +80,36 @@ def insufficient_data_message() -> str:
 
 def _clip(text: str, limit: int = 200) -> str:
     return text if len(text) <= limit else text[: limit - 1] + "…"
+
+
+def dry_run_report(
+    config: "AppConfig", decisions: Sequence[PlantDecision], tomorrow_mm: float
+) -> str:
+    """Human-readable `--dry-run` printout with inputs and reason (plan Phase 7).
+
+    Pure: the caller prints it; no clock, no I/O.
+    """
+    blocks: list[str] = []
+    for decision in decisions:
+        requirement = config.requirement(decision.plant, decision.season)
+        profile = config.thresholds.profile(decision.water_need)
+        target = requirement.rain_target_mm_7d
+        heat = (
+            f" (×{decision.heat_factor:.2f} for heat = "
+            f"{decision.effective_target_mm:g} mm)"
+            if decision.heat_factor != 1.0 else ""
+        )
+        blocks.append(
+            f"Plant: {decision.plant:<18} Season: {decision.season:<8} "
+            f"Water need: {decision.water_need}\n"
+            f"Rain last 7 days: {decision.rain_7d_mm:g} mm\n"
+            f"Target: {target:g} mm{heat}\n"
+            f"Plant got {decision.rain_fraction:.0%} of its target; it gets "
+            f"watered below {profile.min_rain_fraction:.0%}\n"
+            f"Tomorrow rain: {tomorrow_mm:g} mm (waits only at "
+            f"{profile.skip_if_tomorrow_rain_mm:g} mm or more)\n"
+            f"Decision: {decision.decision}\n"
+            f"Reason: {decision.reason}"
+        )
+    header = "— dry run: nothing sent, nothing written —\n"
+    return header + "\n\n" + "\n\n".join(blocks) + "\n"

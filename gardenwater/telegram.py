@@ -6,6 +6,8 @@ The bot token travels in the URL, so every error passes through `redact()`.
 
 from __future__ import annotations
 
+import os
+
 import requests
 
 from gardenwater.config import redact
@@ -40,3 +42,19 @@ def send_message(token: str, chat_id: str, text: str, session=None) -> None:
     if not body.get("ok"):
         description = body.get("description", "unknown error")
         raise TelegramError(redact(f"telegram: {description}"))
+
+
+def require_token() -> str:
+    """The bot token from the environment; missing counts as a send failure."""
+    token = os.environ.get("TELEGRAM_BOT_TOKEN", "")
+    if not token:
+        raise TelegramError("telegram: TELEGRAM_BOT_TOKEN is not set")
+    return token
+
+
+def require_chat_id() -> str:
+    """The target chat id from the environment."""
+    chat_id = os.environ.get("TELEGRAM_CHAT_ID", "")
+    if not chat_id:
+        raise TelegramError("telegram: TELEGRAM_CHAT_ID is not set")
+    return chat_id
