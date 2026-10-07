@@ -63,8 +63,10 @@ season_calendar:
 plants:
   - name: peach          # required, non-empty, unique
     type: fruit-tree     # required, non-empty string (free text, unused by the algorithm)
-    count: 1             # required, number > 0 (unused by the algorithm)
 ```
+
+> Older configs may contain `count:` — it was removed from the schema and is
+> now ignored; new configs should not include it.
 
 `name` is the plant's identity: it must match a key under `water_requirements`
 **character for character**, it is stored in SQLite (decisions, reminder
@@ -116,7 +118,10 @@ partial section is fine. Valid ranges (for reference):
 | `severe.min_reminders` | int ≥ 1 | 2 |
 | `severe.wait_multiplier` | number ≥ 1 | 2.0 |
 
-Unknown keys (anywhere) are silently **ignored** — do not add them.
+Unknown keys are **ignored** in top-level sections and on plant entries, but
+**rejected inside `watering:`** (that section deep-merges over the defaults and
+flags unknown settings as typos). Do not add keys that are not in this
+document.
 
 ## Choosing values from plain text
 
@@ -159,7 +164,6 @@ plants:
   # ...existing plants...
   - name: cherry-tomato
     type: vegetable
-    count: 2
 
 water_requirements:
   # ...existing plants...
@@ -171,7 +175,8 @@ water_requirements:
 ```
 
 (The user said "nothing in winter" — dormancy is expressed as `low` with a
-tiny target, *not* by omitting the season: all four seasons are mandatory.)
+tiny target, *not* by omitting the season: all four seasons are mandatory.
+"How many" isn't tracked: one entry per plant kind, no `count` field.)
 
 ## Before you output — checklist
 

@@ -46,7 +46,6 @@ CONFIG_YAML = textwrap.dedent(
     plants:
       - name: peach
         type: fruit-tree
-        count: 1
     water_requirements:
       peach:
         spring: {water_need: medium, rain_target_mm_7d: 30}

@@ -27,7 +27,7 @@ Choices made where the brief was open. Change them here first, then in code.
 | D11 | A notification counts as sent only if Telegram returned success. Failed sends are recorded as `failed` and do **not** create reminder state. Exit code 3. | State must reflect what the user actually received. |
 | D12 | Re-running the same day never re-sends a watering message (checked via `watering_decisions`). | Idempotent cron/manual runs. |
 | D13 | `--dry-run` may upsert weather data (harmless cache) but writes **no** decisions, reminder state, or provider-status changes, and sends nothing. | Dry runs must not alter reminder behavior. |
-| D14 | `plant.type` and `plant.count` are validated but not used by the algorithm in v1. | Reserved for later. |
+| D14 | `plant.type` is validated but not used by the algorithm (a human label only); `plant.count` was removed from the schema entirely — see D26. | Type kept for readability; count was dead configuration. |
 | D15 | Telegram messages are plain text (no `parse_mode`). | No escaping bugs. |
 | D16 | HTTP via `requests` (timeouts 10 s, no retries beyond the provider chain). `.env` loaded by a ~10-line parser in `config.py` (no python-dotenv). | Few dependencies. |
 | D17 | The brief's `severe_deficit_multiplier` is replaced by `severe.wait_multiplier` (see algorithm). | Clearer meaning. |
@@ -39,6 +39,7 @@ Choices made where the brief was open. Change them here first, then in code.
 | D23 | The provider protocol's `fetch()` also takes `missing_dates` — window days not yet persisted. WeatherAPI's free plan has no history range endpoint (api-notes.md), so it calls `/history.json` once per missing date; Open-Meteo ignores the argument (its archived forecast covers `past_days` in one call). | Keeps one uniform `fetch → WeatherData` interface while honouring the free-plan limit without a second code path in the service. |
 | D24 | The brief's exact texts for the provider-warning and all-failed messages are not in the repo, so they are minimal one-liners (user-chosen 2026-10-07): all-failed `⚠️ Garden watering check failed: no weather data available.` and provider warning `⚠️ <provider> failed: <error> (using fallback)` — error redacted, truncated to ~200 chars. Insufficient-data keeps the two-line text from §Messages. | Ambiguous requirement → simpler behaviour + assumption recorded (working agreement). Easy to reword in `messages.py` only. |
 | D25 | Post-v1 addition (user request 2026-10-07): standalone `--prune [--keep-days N]` mode for cron — deletes `weather_daily` + `watering_decisions` older than N days (default 30), clamped to at least `recent_days` so the rain window survives. `reminder_state` and `provider_status` are current state, never pruned. No weather fetch, no Telegram, exit 0; `--today` honoured for tests. | A cron-maintained database should be cleanable without side effects; retention default and clamp are the simplest safe choices (working agreement: prefer simpler behaviour + record it here). |
+| D26 | **`plant.count` removed from the schema** (user choice 2026-10-07): it was validated but never read (dropping D14's "reserved for later"). `plant.type` stays as a human label. Old configs still containing `count:` load fine — unknown keys on plant entries are ignored (unknown keys *inside* `watering:` remain rejected, that's typo protection). | Dead configuration is noise in a small project; one less required line for humans and LLMs to maintain. |
 
 ---
 
@@ -163,7 +164,7 @@ See `config.example.yaml` (peach example from the brief, coordinates `0.0`, time
 Validation (all errors collected and reported together, exit 2):
 - latitude ∈ [−90, 90], longitude ∈ [−180, 180], timezone valid for `zoneinfo`.
 - `season_calendar`: exactly the four seasons; months 1–12 each in exactly one season.
-- plants: `name`, `type` present; `count` numeric > 0; names unique.
+- plants: `name`, `type` present; names unique.
 - every plant has a `water_requirements` entry and vice versa; all four seasons present;
   `water_need ∈ {low, medium, high}`; `rain_target_mm_7d` numeric ≥ 0.
 - `watering` overrides: numeric, sensible ranges (fractions in 0..1, multiplier ≥ 1, etc.); all three `need_profiles` present.

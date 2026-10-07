@@ -26,8 +26,8 @@ def valid_config() -> dict:
             "winter": [12, 1, 2],
         },
         "plants": [
-            {"name": "peach", "type": "fruit-tree", "count": 1},
-            {"name": "tomato", "type": "vegetable", "count": 4},
+            {"name": "peach", "type": "fruit-tree"},
+            {"name": "tomato", "type": "vegetable"},
         ],
         "water_requirements": {
             "peach": {
@@ -58,7 +58,7 @@ def test_valid_load(tmp_path: Path) -> None:
     assert cfg.location.longitude == 13.41
     assert cfg.location.timezone == "Europe/Berlin"
     assert [plant.name for plant in cfg.plants] == ["peach", "tomato"]
-    assert cfg.plants[1].count == 4
+    assert cfg.plants[1].type == "vegetable"
     assert cfg.requirement("peach", "summer").water_need == "high"
     assert cfg.requirement("tomato", "spring").rain_target_mm_7d == 25
 
@@ -211,24 +211,26 @@ def test_unknown_watering_setting_rejected(tmp_path: Path) -> None:
 
 def test_duplicate_plant_name_rejected(tmp_path: Path) -> None:
     config = valid_config()
-    config["plants"].append({"name": "peach", "type": "fruit-tree", "count": 1})
+    config["plants"].append({"name": "peach", "type": "fruit-tree"})
     assert "duplicate plant name" in expect_errors(tmp_path, config)
 
 
-def test_non_positive_count_rejected(tmp_path: Path) -> None:
+def test_leftover_count_in_old_configs_is_ignored(tmp_path: Path) -> None:
+    """`count` was removed from the schema (D26); old configs must still load."""
     config = valid_config()
-    config["plants"][0]["count"] = 0
-    assert "count" in expect_errors(tmp_path, config)
+    config["plants"][0]["count"] = 1
+    cfg = load_config(write_config(tmp_path, config))
+    assert cfg.plants[0].name == "peach"
 
 
 def test_all_errors_reported_together(tmp_path: Path) -> None:
     config = valid_config()
     config["location"]["latitude"] = 999
-    config["plants"][0]["count"] = -5
+    config["plants"][0]["type"] = ""
     config["water_requirements"]["peach"]["summer"]["water_need"] = "thirsty"
     message = expect_errors(tmp_path, config)
     assert "location.latitude" in message
-    assert "count" in message
+    assert "plants[peach].type" in message
     assert "water_need" in message
 
 

@@ -21,11 +21,10 @@ season_calendar:
   autumn: [9, 10, 11]
   winter: [12, 1, 2]
 
-# Your plants. `type` and `count` are recorded but not used by the algorithm.
+# Your plants. `type` is a human label; the algorithm only uses `name`.
 plants:
   - name: peach
     type: fruit-tree
-    count: 1
 
 # Per plant, per season: how thirsty it is and how much rain it would ideally
 # get over a rolling 7 days (mm). This is an approximate gardener's number,

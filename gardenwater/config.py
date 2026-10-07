@@ -118,7 +118,6 @@ class Thresholds:
 class PlantConfig:
     name: str
     type: str
-    count: float
 
 
 @dataclass(frozen=True)
@@ -350,12 +349,7 @@ def _parse_plants(
             if not isinstance(kind, str) or not kind:
                 errors.append(f"{label}.type: required non-empty string")
                 kind = ""
-            count = _number(entry.get("count"), f"{label}.count", errors, minimum=0.0)
-            if count is None or count <= 0:
-                if count is not None:
-                    errors.append(f"{label}.count: must be > 0, got {count}")
-                count = 0
-            plants.append(PlantConfig(name, kind, count))
+            plants.append(PlantConfig(name, kind))
 
     requirements: dict[str, dict[str, SeasonRequirement]] = {}
     if not isinstance(raw_requirements, dict):
