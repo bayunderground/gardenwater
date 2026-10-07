@@ -87,6 +87,65 @@ Live sample captured 2026-10-07 → `tests/fixtures/open_meteo_forecast.json`
 
 ---
 
-## WeatherAPI.com — pending verification (Phase 0 task 5)
+## WeatherAPI.com — ✅ docs verified (live capture needs `WEATHERAPI_KEY`)
+
+- **Docs:** https://www.weatherapi.com/docs/ (Authentication, Request URL,
+  Forecast API, History API, API Error Codes sections)
+- **Endpoint:** `GET https://api.weatherapi.com/v1/<method>.json`
+- **Auth:** API key as query param `key=<KEY>` (⚠️ key appears in the URL —
+  `requests` exceptions include it, so **always `redact()`**).
+- **Units:** response is metric when requested with metric fields —
+  `totalprecip_mm` (mm), `avgtemp_c` / `maxtemp_c` (°C).
+
+### Request plan
+
+| Data | Method | Params | Notes |
+|------|--------|--------|-------|
+| today + tomorrow (+ up to 14 days) | `/forecast.json` | `q=<lat>,<lon>`, `days=2`, `key=` | `forecast.forecastday[]`, index 0 = today, index 1 = tomorrow. Dates are **location-local** (`location.localtime`, `tz_id`). |
+| past days (only dates missing from SQLite) | `/history.json` | `q=<lat>,<lon>`, `dt=YYYY-MM-DD`, `key=` | History from **2010-01-01**. `end_dt` (range fetch) is **Pro plan and above** ⇒ free plan is **one date per request**, so we fetch only missing dates (plan §Phase 4 ✅). |
+
+### Fields used (`day` element, same shape in forecast and history)
+
+| Field | Unit | Notes |
+|-------|------|-------|
+| `date` | `YYYY-MM-DD` | location-local date |
+| `day.totalprecip_mm` | mm | daily total precipitation |
+| `day.avgtemp_c` | °C | daily mean |
+| `day.maxtemp_c` | °C | daily max |
+
+`forecastday[].date` + `day.*` verified in docs' Forecast/History `day` tables.
+
+### ET₀ — **not available on our plan**
+
+Docs: `et0=yes` param returns Evapotranspiration "available for **Business and
+Enterprise** clients only"; History also mentions ET₀ only for Enterprise.
+⇒ provider returns `et0_mm=None`; the algorithm falls back to the temperature
+heat factor (§2 step 3 handles this). **No plan change needed** (plan already
+allows `et0` missing).
+
+### Errors
+
+JSON body with `error.code` + `error.message`, HTTP 4xx:
+
+| HTTP | code | meaning |
+|------|------|---------|
+| 401 | 1002 | API key not provided |
+| 401 | 2006 | API key provided is invalid |
+| 403 | 2007 | monthly call quota exceeded |
+| 403 | 2008 | API key disabled |
+| 403 | 2009 | key has no access to resource (plan limit) |
+| 400 | 1006 | no location matching `q` |
+
+Free-tier limits: see pricing page (quota enforced via code 2007). Defensive
+handling: any 4xx/5xx or malformed body ⇒ `ProviderError` with redacted message.
+
+### Fixture (pending key)
+
+Live capture → `tests/fixtures/weatherapi_forecast.json` and
+`tests/fixtures/weatherapi_history.json` once `WEATHERAPI_KEY` is in `.env`.
+Until then parser tests will use a hand-written fixture built exactly from the
+docs' response shape, and be replaced by the recorded one when the key lands.
+
+---
 
 ## OpenWeather — pending verification (Phase 0 task 6)
