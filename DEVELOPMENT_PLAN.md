@@ -323,8 +323,8 @@ These apply to every phase:
 - **Tests:** `test_weather_service.py` — fallback order (#12); mixed-provider days in DB; failure warning once not daily (#13); all fail raises `AllProvidersFailed`; unconfigured provider skipped silently.
 
 ### Phase 6 — Telegram and messages
-- [ ] `telegram.py`: `send_message(token, chat_id, text)` via `sendMessage`, timeout, raises `TelegramError` (redacted).
-- [ ] `messages.py`: watering message (WATER/FOLLOW_UP/mixed), provider warning, all-failed, insufficient data.
+- [x] `telegram.py`: `send_message(token, chat_id, text)` via `sendMessage`, timeout, raises `TelegramError` (redacted).
+- [x] `messages.py`: watering message (WATER/FOLLOW_UP/mixed), provider warning, all-failed, insufficient data.
 - **Tests:** `test_messages.py` — exact text for single plant, multi-plant, follow-up only, mixed; no forbidden phrasing ("you didn't water"); `test_telegram.py` — payload shape, error redaction.
 
 ### Phase 7 — Orchestration, CLI, logging
