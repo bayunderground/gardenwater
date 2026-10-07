@@ -1,0 +1,9 @@
+# Cron line for garden-water — evening run, then the program exits.
+# Install with:  crontab -e   (adjust the three paths)
+#
+# 19:00 is the SERVER's timezone; "today"/"tomorrow" inside the program use
+# the garden timezone from config.yaml (location.timezone).
+# .env, config.yaml and garden.db resolve next to garden_water.py, so cron's
+# working directory does not matter.
+
+0 19 * * * /path/to/garden-water/.venv/bin/python /path/to/garden-water/garden_water.py >> /path/to/garden-water/garden-water.log 2>&1
