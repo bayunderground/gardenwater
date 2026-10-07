@@ -34,6 +34,7 @@ Choices made where the brief was open. Change them here first, then in code.
 | D18 | Trigger thresholds are expressed as **"water when the plant got less than X% of its target rain"** (`min_rain_fraction`), not as a "deficit ratio". | A gardener can read and tune "less than 50% of target". |
 | D19 | **Rain since the reminder** counts dates *after* the reminder date through today. | The reminder is sent in the evening, so rain on the reminder day mostly fell before it. |
 | D20 | Defaults live in **one** place (`DEFAULT_WATERING` at the top of `config.py`). `config.example.yaml` shows the full `watering:` section with the same values and comments; a test keeps them in sync. | Humans edit the YAML; code has no hidden numbers. |
+| D21 | OpenWeather provider uses **One Call API 4.0** `timeline/1day` (verified 2026-10-07, see `docs/api-notes.md`), not 3.0: one endpoint gives history + today + tomorrow, `units=metric`, auth `appid`. Free "One Call by Call" subscription (1,000 calls/day). `temperature_avg_c` stays `None` (4.0 has no documented daily mean); ET₀ absent ⇒ heat falls back to temperature. | The plan's "unverified One Call 4.0" exists and is current; 4.0 is recommended for new integrations and avoids 3.0's split history/forecast endpoints. |
 
 ---
 
@@ -285,7 +286,7 @@ These apply to every phase:
 ## 5. Phases
 
 ### Phase 0 — Scaffold and API verification
-- [ ] Create repo skeleton, `.gitignore` (`.env`, `config.yaml`, `*.db`, `*.log`, `.venv`), `requirements.txt`, empty modules, `tests/`.
+- [x] Create repo skeleton, `.gitignore` (`.env`, `config.yaml`, `*.db`, `*.log`, `.venv`), `requirements.txt`, empty modules, `tests/`.
 - [ ] **Verify current official docs** for each provider; write `docs/api-notes.md` with: endpoint URL, auth method, required params, units, how to get past days, **today's daily total**, and **tomorrow's daily forecast**, field names for precipitation / temp avg / temp max / ET0, free-tier limits, error format, one trimmed sample response.
   - Open-Meteo: forecast endpoint with `past_days` and `daily=` variables (expected: precipitation sum, temperature max/mean, `et0_fao_evapotranspiration`); confirm `timezone` handling and that today's daily sum mixes observed and forecast values.
   - WeatherAPI.com: forecast + history endpoints; confirm history range on the free plan, day structure (`totalprecip_mm`, `avgtemp_c`, `maxtemp_c`), whether any ET0 exists. History is likely one request per day — fetch only dates missing from SQLite.

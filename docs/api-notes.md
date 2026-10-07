@@ -148,4 +148,59 @@ docs' response shape, and be replaced by the recorded one when the key lands.
 
 ---
 
-## OpenWeather — pending verification (Phase 0 task 6)
+## OpenWeather — ✅ docs verified (live capture needs `OPENWEATHER_API_KEY`)
+
+- **Docs:** https://openweathermap.org/api/one-call-4 (One Call API **4.0**,
+  launched Jun 2026, "recommended for all new integrations"); migration notes:
+  https://openweathermap.org/api/one-call-3-migration
+- **PLAN CHANGE (recorded as D21 in `DEVELOPMENT_PLAN.md` §1):** the plan's
+  unverified "One Call 4.0" **does exist** and is the current product, so we use
+  it — not 3.0.
+- **Endpoint:** `GET https://api.openweathermap.org/data/4.0/onecall/timeline/1day`
+- **Auth:** `appid=<key>` query param (⚠️ key in URL → always `redact()`).
+- **Subscription:** "One Call by Call" **only** (separate free subscription;
+  docs: "1,000 calls/day for free"; account default cap is set to 2,000/day on
+  subscribe; changeable in Personal account). No other plan needed.
+- **Units:** pass `units=metric` ⇒ °C; precipitation fields in mm.
+
+### Request plan
+
+One endpoint serves history + today + tomorrow ("47 years of history and up to
+1.5 years ahead") — simpler than 3.0's split history/forecast endpoints:
+
+| Data | How |
+|------|-----|
+| past 10 days + today + tomorrow | `timeline/1day?lat=&lon=&units=metric&start=<unix of ~10 days ago>&appid=` |
+
+**Pagination caveat:** the 1-day timeline returns **max 10 records** per
+response; more pages via `next`/`prev` URLs (`start`, `cnt`). 12 days ⇒ 2
+requests (each paginated request counts toward the quota). No `cnt` param is
+documented on the main call table, but `next` URLs include `cnt=10` — follow the
+provided `next` URL verbatim rather than building it.
+
+### Fields used (daily record in `data[]`)
+
+| Field | Unit | Notes |
+|-------|------|-------|
+| `data.dt` | unix UTC | convert to garden-local date using `timezone`/`timezone_offset` from the response |
+| `data.temp.max` | °C | daily max → `temperature_max_c` |
+| `data.temp.day` | °C | "Day temperature" — **not documented as a daily mean** ⇒ we store `temperature_avg_c=None` (heat factor uses tmax anyway, §2 step 3) |
+| `data.rain` / `data.snow` | mm | docs list `data.rain.1h` even for the daily endpoint (likely copy-paste from hourly). **Must confirm the actual shape live** (number vs object) before finishing the parser. |
+| ET₀ | — | **not provided by One Call 4.0** ⇒ `et0_mm=None`, heat falls back to temperature |
+
+Today's record: docs don't state explicitly whether today's value mixes observed
++ forecast — **confirm live**; we accept whatever single daily total it gives
+(plan D3).
+
+### Errors
+
+JSON `{"cod": <code>, "message": "...", "parameters": [...]}`:
+400 bad params · 401 missing/no-access key · 404 data unavailable · 429 quota ·
+5xx server. Treat 4xx/5xx/malformed as `ProviderError` (redacted; message may
+echo `lat`/`lon`, never the key — but `requests` exceptions include the URL, so
+redact anyway).
+
+### Fixture (pending key)
+
+Live capture → `tests/fixtures/openweather_timeline_1day.json` once
+`OPENWEATHER_API_KEY` (One Call by Call subscribed) is in `.env`.
