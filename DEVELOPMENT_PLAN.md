@@ -295,8 +295,8 @@ These apply to every phase:
 - **Done when:** `api-notes.md` answers, for each provider, "can it give history / today / tomorrow / temp / ET0?" with doc links, and fixtures exist. ✅ 2026-10-07: Open-Meteo + WeatherAPI fixtures recorded live; OpenWeather documented and disabled (D21).
 
 ### Phase 1 — Config and validation
-- [ ] `config.py`: dataclasses, `DEFAULT_WATERING` at the top, `Thresholds`, `.env` loader, validation (§3), `redact()` helper.
-- [ ] `config.example.yaml` (peach, full commented `watering:` section), `.env.example`.
+- [x] `config.py`: dataclasses, `DEFAULT_WATERING` at the top, `Thresholds`, `.env` loader, validation (§3), `redact()` helper.
+- [x] `config.example.yaml` (peach, full commented `watering:` section), `.env.example`.
 - **Tests:** `test_config.py` — valid load; four seasons load (#10); missing season rejected (#11); month in two seasons / missing month rejected; bad lat/lon/tz; bad `water_need`; negative target; plant with no requirements; fraction outside 0..1 rejected; `redact()` strips keys/tokens; month→season mapping (#9); **`config.example.yaml` watering values equal `DEFAULT_WATERING`**.
 
 ### Phase 2 — Models and database
