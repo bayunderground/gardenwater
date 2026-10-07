@@ -306,8 +306,8 @@ These apply to every phase:
 - **Tests:** `test_database.py` — schema idempotent; upsert overwrites same date (today's provisional row replaced next day); window query; reminder lifecycle; provider status transitions.
 
 ### Phase 3 — Watering algorithm (core)
-- [ ] `watering.py`: `season_for(date, calendar)`, `heat_factor(window, thresholds)`, `rain_in_window(...)`, `decide_plant(...) -> PlantDecision` implementing §2 exactly, following §4 readability rules. Pure functions.
-- [ ] Decision carries all numbers needed for the DB row, dry-run output and messages.
+- [x] `watering.py`: `season_for(date, calendar)`, `heat_factor(window, thresholds)`, `rain_in_window(...)`, `decide_plant(...) -> PlantDecision` implementing §2 exactly, following §4 readability rules. Pure functions.
+- [x] Decision carries all numbers needed for the DB row, dry-run output and messages.
 - **Tests:** `test_watering.py` — #1–#9 plus examples A–E and Severe/Severe-low from the table; today's rain is counted in the window; scaled window with missing days; reminder streak reset by meaningful rain; zero target → NO_ACTION.
 
 ### Phase 4 — Weather providers
