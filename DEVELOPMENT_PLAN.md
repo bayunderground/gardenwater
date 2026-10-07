@@ -300,8 +300,8 @@ These apply to every phase:
 - **Tests:** `test_config.py` — valid load; four seasons load (#10); missing season rejected (#11); month in two seasons / missing month rejected; bad lat/lon/tz; bad `water_need`; negative target; plant with no requirements; fraction outside 0..1 rejected; `redact()` strips keys/tokens; month→season mapping (#9); **`config.example.yaml` watering values equal `DEFAULT_WATERING`**.
 
 ### Phase 2 — Models and database
-- [ ] `weather/models.py`, `models.py` (Decision enum, `PlantDecision`, `ReminderState`).
-- [ ] `database.py`: schema init, upsert weather, read window, provider status get/set, decision upsert, reminder state get/set/clear.
+- [x] `weather/models.py`, `models.py` (Decision enum, `PlantDecision`, `ReminderState`).
+- [x] `database.py`: schema init, upsert weather, read window, provider status get/set, decision upsert, reminder state get/set/clear.
 - **Tests:** `test_database.py` — schema idempotent; upsert overwrites same date (today's provisional row replaced next day); window query; reminder lifecycle; provider status transitions.
 
 ### Phase 3 — Watering algorithm (core)
