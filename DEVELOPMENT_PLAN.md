@@ -287,12 +287,12 @@ These apply to every phase:
 
 ### Phase 0 — Scaffold and API verification
 - [x] Create repo skeleton, `.gitignore` (`.env`, `config.yaml`, `*.db`, `*.log`, `.venv`), `requirements.txt`, empty modules, `tests/`.
-- [ ] **Verify current official docs** for each provider; write `docs/api-notes.md` with: endpoint URL, auth method, required params, units, how to get past days, **today's daily total**, and **tomorrow's daily forecast**, field names for precipitation / temp avg / temp max / ET0, free-tier limits, error format, one trimmed sample response.
+- [x] **Verify current official docs** for each provider; write `docs/api-notes.md` with: endpoint URL, auth method, required params, units, how to get past days, **today's daily total**, and **tomorrow's daily forecast**, field names for precipitation / temp avg / temp max / ET0, free-tier limits, error format, one trimmed sample response.
   - Open-Meteo: forecast endpoint with `past_days` and `daily=` variables (expected: precipitation sum, temperature max/mean, `et0_fao_evapotranspiration`); confirm `timezone` handling and that today's daily sum mixes observed and forecast values.
   - WeatherAPI.com: forecast + history endpoints; confirm history range on the free plan, day structure (`totalprecip_mm`, `avgtemp_c`, `maxtemp_c`), whether any ET0 exists. History is likely one request per day — fetch only dates missing from SQLite.
   - OpenWeather: ~~unverified~~ **verified 2026-10-07 — see D21**: One Call 4.0 exists (`timeline/1day`, history + forecast in one, `appid`, "One Call by Call" subscription) but the key got 401 on 4.0/3.0/day_summary, and `2.5/forecast` said invalid key. **Provider disabled for now** (D21); recorded in `docs/api-notes.md`.
-- [ ] Save trimmed real responses as `tests/fixtures/<provider>_*.json`.
-- **Done when:** `api-notes.md` answers, for each provider, "can it give history / today / tomorrow / temp / ET0?" with doc links, and fixtures exist.
+- [x] Save trimmed real responses as `tests/fixtures/<provider>_*.json`.
+- **Done when:** `api-notes.md` answers, for each provider, "can it give history / today / tomorrow / temp / ET0?" with doc links, and fixtures exist. ✅ 2026-10-07: Open-Meteo + WeatherAPI fixtures recorded live; OpenWeather documented and disabled (D21).
 
 ### Phase 1 — Config and validation
 - [ ] `config.py`: dataclasses, `DEFAULT_WATERING` at the top, `Thresholds`, `.env` loader, validation (§3), `redact()` helper.
