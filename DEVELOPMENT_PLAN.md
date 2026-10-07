@@ -345,7 +345,7 @@ These apply to every phase:
 ### Phase 8 — Docs and smoke test
 - [x] `README.md`: setup, config reference, `rain_target_mm_7d` meaning (approximate natural rain the plant would ideally get over a rolling 7 days in that season; not scientific), `water_need`, thresholds table, tuning cheat-sheet, "where do I change X?" table, algorithm walkthrough (§2), provider fallback diagram, "add a provider" (create module, implement protocol, register in `service.py` list, add fixture + parser test), cron, troubleshooting.
 - [x] Cron example (evening): `cron.example` + README §Cron. Note: cron uses the **server's** timezone for the 19:00 trigger, while "today" is computed in the garden timezone from config. `.env`, `config.yaml` and `garden.db` resolve relative to the script path, not the working directory.
-- [ ] Manual smoke test: real coordinates, `--dry-run` with each provider key set/unset; one real Telegram test message.
+- [x] Manual smoke test (2026-10-07): real coordinates 44.5165591, 33.5003639 / Europe/Moscow — `--dry-run` with all keys set and with `WEATHERAPI_KEY` unset both exit 0 (open-meteo chosen, autumn/peach WATER printed, 0 decisions + 0 reminders written, weather cached); one real Telegram test message delivered (send ok).
 - **Done when:** all checkboxes ticked, `pytest -q` green, README matches behavior.
 
 ---
