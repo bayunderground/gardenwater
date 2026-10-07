@@ -8,9 +8,11 @@ Dates are stored as TEXT `YYYY-MM-DD` (garden-local); timestamps are ISO 8601 UT
 from __future__ import annotations
 
 import sqlite3
+from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 
+from gardenwater.models import Decision, PlantDecision, ReminderState
 from gardenwater.weather.models import DailyWeather
 
 # Kept identical to DEVELOPMENT_PLAN.md §3; CREATE IF NOT EXISTS = idempotent.
@@ -138,3 +140,203 @@ def _row_to_daily(row: sqlite3.Row) -> "DailyWeather":
         temperature_max_c=row["temperature_max_c"],
         et0_mm=row["et0_mm"],
     )
+
+
+# ---------------------------------------------------------------------------
+# provider_status — drives the notify-once failure warning (plan D8).
+# ---------------------------------------------------------------------------
+@dataclass(frozen=True)
+class ProviderStatus:
+    """One row of `provider_status`. All timestamps are ISO 8601 UTC."""
+
+    provider: str
+    state: str                       # 'ok' | 'failed'
+    failed_since: str | None = None  # when it first failed (kept while failing)
+    last_error: str | None = None    # redacted, short
+    last_notified_at: str | None = None  # when we last warned about it
+    updated_at: str = ""
+
+
+def get_provider_status(conn: sqlite3.Connection, provider: str) -> ProviderStatus | None:
+    row = conn.execute(
+        "SELECT * FROM provider_status WHERE provider = ?", (provider,)
+    ).fetchone()
+    if row is None:
+        return None
+    return ProviderStatus(
+        provider=row["provider"],
+        state=row["state"],
+        failed_since=row["failed_since"],
+        last_error=row["last_error"],
+        last_notified_at=row["last_notified_at"],
+        updated_at=row["updated_at"],
+    )
+
+
+def save_provider_status(conn: sqlite3.Connection, status: ProviderStatus) -> None:
+    conn.execute(
+        """
+        INSERT INTO provider_status
+          (provider, state, failed_since, last_error, last_notified_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?)
+        ON CONFLICT(provider) DO UPDATE SET
+          state = excluded.state,
+          failed_since = excluded.failed_since,
+          last_error = excluded.last_error,
+          last_notified_at = excluded.last_notified_at,
+          updated_at = excluded.updated_at
+        """,
+        (
+            status.provider,
+            status.state,
+            status.failed_since,
+            status.last_error,
+            status.last_notified_at,
+            status.updated_at or utc_now_iso(),
+        ),
+    )
+    conn.commit()
+
+
+# ---------------------------------------------------------------------------
+# watering_decisions — one row per (date, plant), last write wins.
+# ---------------------------------------------------------------------------
+def upsert_decision(
+    conn: sqlite3.Connection, decision: PlantDecision, decided_at: str | None = None
+) -> None:
+    conn.execute(
+        """
+        INSERT INTO watering_decisions
+          (decision_date, plant, season, water_need, decision, reason, rain_7d_mm,
+           effective_target_mm, rain_fraction, deficit_mm, heat_factor,
+           tomorrow_rain_mm, rain_since_reminder_mm, provider,
+           notification_type, notification_status, decided_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(decision_date, plant) DO UPDATE SET
+          season = excluded.season,
+          water_need = excluded.water_need,
+          decision = excluded.decision,
+          reason = excluded.reason,
+          rain_7d_mm = excluded.rain_7d_mm,
+          effective_target_mm = excluded.effective_target_mm,
+          rain_fraction = excluded.rain_fraction,
+          deficit_mm = excluded.deficit_mm,
+          heat_factor = excluded.heat_factor,
+          tomorrow_rain_mm = excluded.tomorrow_rain_mm,
+          rain_since_reminder_mm = excluded.rain_since_reminder_mm,
+          provider = excluded.provider,
+          notification_type = excluded.notification_type,
+          notification_status = CASE
+            WHEN watering_decisions.notification_status = 'sent' THEN 'sent'
+            ELSE excluded.notification_status
+          END,
+          decided_at = excluded.decided_at
+        """,
+        (
+            decision.decision_date.isoformat(),
+            decision.plant,
+            decision.season,
+            decision.water_need,
+            str(decision.decision),
+            decision.reason,
+            decision.rain_7d_mm,
+            decision.effective_target_mm,
+            decision.rain_fraction,
+            decision.deficit_mm,
+            decision.heat_factor,
+            decision.tomorrow_rain_mm,
+            decision.rain_since_reminder_mm,
+            decision.provider,
+            decision.notification_type,
+            decision.notification_status,
+            decided_at or utc_now_iso(),
+        ),
+    )
+    conn.commit()
+
+
+def decisions_for_date(conn: sqlite3.Connection, decision_date: date) -> list[PlantDecision]:
+    rows = conn.execute(
+        "SELECT * FROM watering_decisions WHERE decision_date = ? ORDER BY plant",
+        (decision_date.isoformat(),),
+    ).fetchall()
+    return [
+        PlantDecision(
+            decision_date=date.fromisoformat(row["decision_date"]),
+            plant=row["plant"],
+            season=row["season"],
+            water_need=row["water_need"],
+            decision=Decision(row["decision"]),
+            reason=row["reason"],
+            rain_7d_mm=row["rain_7d_mm"],
+            effective_target_mm=row["effective_target_mm"],
+            rain_fraction=row["rain_fraction"],
+            deficit_mm=row["deficit_mm"],
+            heat_factor=row["heat_factor"],
+            tomorrow_rain_mm=row["tomorrow_rain_mm"],
+            rain_since_reminder_mm=row["rain_since_reminder_mm"],
+            provider=row["provider"],
+            notification_type=row["notification_type"],
+            notification_status=row["notification_status"],
+        )
+        for row in rows
+    ]
+
+
+def notification_sent_on(conn: sqlite3.Connection, decision_date: date) -> bool:
+    """Has a watering message already been delivered on this date? (plan D12)"""
+    row = conn.execute(
+        "SELECT 1 FROM watering_decisions WHERE decision_date = ? "
+        "AND notification_status = 'sent' LIMIT 1",
+        (decision_date.isoformat(),),
+    ).fetchone()
+    return row is not None
+
+
+def mark_notifications(conn: sqlite3.Connection, decision_date: date, status: str) -> None:
+    """Set `notification_status` ('sent'|'failed') on every notifying row of the day.
+
+    The watering message is combined (max one per run), so all its plants share
+    the same outcome (plan D11).
+    """
+    conn.execute(
+        "UPDATE watering_decisions SET notification_status = ? "
+        "WHERE decision_date = ? AND notification_type IS NOT NULL",
+        (status, decision_date.isoformat()),
+    )
+    conn.commit()
+
+
+# ---------------------------------------------------------------------------
+# reminder_state — only written after a successful send (plan D11/D12).
+# ---------------------------------------------------------------------------
+def get_reminder(conn: sqlite3.Connection, plant: str) -> ReminderState | None:
+    row = conn.execute(
+        "SELECT * FROM reminder_state WHERE plant = ?", (plant,)
+    ).fetchone()
+    if row is None:
+        return None
+    return ReminderState(
+        plant=row["plant"],
+        last_notified_on=date.fromisoformat(row["last_notified_on"]),
+        reminders_count=row["reminders_count"],
+    )
+
+
+def set_reminder(conn: sqlite3.Connection, reminder: ReminderState) -> None:
+    conn.execute(
+        """
+        INSERT INTO reminder_state (plant, last_notified_on, reminders_count)
+        VALUES (?, ?, ?)
+        ON CONFLICT(plant) DO UPDATE SET
+          last_notified_on = excluded.last_notified_on,
+          reminders_count = excluded.reminders_count
+        """,
+        (reminder.plant, reminder.last_notified_on.isoformat(), reminder.reminders_count),
+    )
+    conn.commit()
+
+
+def clear_reminder(conn: sqlite3.Connection, plant: str) -> None:
+    conn.execute("DELETE FROM reminder_state WHERE plant = ?", (plant,))
+    conn.commit()
