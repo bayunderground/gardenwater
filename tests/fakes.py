@@ -31,3 +31,44 @@ class FakeSession:
         if not self._responses:
             raise AssertionError("FakeSession: no response left")
         return self._responses.pop(0)
+
+
+class FakeProvider:
+    """Canned WeatherProvider for service/app tests (no network, no real API)."""
+
+    def __init__(self, name="fake", configured=True, data=None, error=None):
+        self.name = name
+        self._configured = configured
+        self._data = data
+        self._error = error
+        self.calls = []
+
+    def is_configured(self) -> bool:
+        return self._configured
+
+    def fetch(self, lat, lon, tz, today, past_days, missing_dates=()):
+        self.calls.append({
+            "lat": lat, "lon": lon, "tz": tz, "today": today,
+            "past_days": past_days, "missing_dates": list(missing_dates),
+        })
+        if self._error is not None:
+            raise self._error
+        return self._data
+
+
+def make_weather_data(provider="fake", history=(), today=None, tomorrow_rain=3.0):
+    """Build a WeatherData with sane defaults for tests."""
+    from datetime import date as _date
+
+    from gardenwater.weather.models import DailyWeather, WeatherData
+
+    today_weather = today or DailyWeather(
+        date=_date(2026, 10, 7), precipitation_mm=0.0
+    )
+    forecast = [
+        DailyWeather(date=_date(2026, 10, 8), precipitation_mm=tomorrow_rain)
+    ]
+    return WeatherData(
+        provider=provider, history=list(history), today=today_weather,
+        forecast=forecast,
+    )
