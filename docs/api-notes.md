@@ -20,7 +20,7 @@ Providers must return, for one fixed location:
 |----------|---------|-------------|----------|---------------|-----|-----------|---------|
 | Open-Meteo | yes (`past_days` 0–92) | yes (daily agg.) | yes | yes / yes | yes | no | `tests/fixtures/open_meteo_forecast.json` |
 | WeatherAPI.com | yes (history, free-plan range TBD below) | yes | yes | yes / yes | no | `WEATHERAPI_KEY` | `tests/fixtures/weatherapi_*.json` |
-| OpenWeather | see One Call section | see One Call section | see One Call section | yes / yes | see section | `OPENWEATHER_API_KEY` | `tests/fixtures/openweather_*.json` |
+| OpenWeather | **disabled** (401) | **disabled** (401) | **disabled** (401) | — | no | `OPENWEATHER_API_KEY` | none |
 
 ---
 
@@ -87,7 +87,7 @@ Live sample captured 2026-10-07 → `tests/fixtures/open_meteo_forecast.json`
 
 ---
 
-## WeatherAPI.com — ✅ docs verified (live capture needs `WEATHERAPI_KEY`)
+## WeatherAPI.com — ✅ verified (docs + live fixtures)
 
 - **Docs:** https://www.weatherapi.com/docs/ (Authentication, Request URL,
   Forecast API, History API, API Error Codes sections)
@@ -139,16 +139,27 @@ JSON body with `error.code` + `error.message`, HTTP 4xx:
 Free-tier limits: see pricing page (quota enforced via code 2007). Defensive
 handling: any 4xx/5xx or malformed body ⇒ `ProviderError` with redacted message.
 
-### Fixture (pending key)
+### Fixtures (captured live 2026-10-07)
 
-Live capture → `tests/fixtures/weatherapi_forecast.json` and
-`tests/fixtures/weatherapi_history.json` once `WEATHERAPI_KEY` is in `.env`.
-Until then parser tests will use a hand-written fixture built exactly from the
-docs' response shape, and be replaced by the recorded one when the key lands.
+`tests/fixtures/weatherapi_forecast.json` (today `2026-10-07` + tomorrow,
+`day` objects kept, `hour`/`astro` trimmed) and
+`tests/fixtures/weatherapi_history.json` (`dt=2026-09-30`).
 
 ---
 
-## OpenWeather — ✅ docs verified (live capture needs `OPENWEATHER_API_KEY`)
+## OpenWeather — docs verified, **provider DISABLED** (subscription blocked)
+
+> **Live test results (2026-10-07, real key):**
+> - `data/4.0/onecall/timeline/1day` → **HTTP 401** "requires a separate
+>   subscription to the One Call by Call plan"
+> - `data/3.0/onecall` → **HTTP 401** (same message)
+> - `data/3.0/onecall/day_summary` → **HTTP 401** (same message)
+> - `data/2.5/forecast` → **HTTP 401** "Invalid API key" (free tier, no daily
+>   history anyway; key may also still have been activating)
+>
+> **Decision (D21):** OpenWeather stays disabled for now — no provider module is
+> registered. The stub in `gardenwater/weather/openweather.py` documents how to
+> re-enable it (subscribe → capture fixture → implement → register).
 
 - **Docs:** https://openweathermap.org/api/one-call-4 (One Call API **4.0**,
   launched Jun 2026, "recommended for all new integrations"); migration notes:
@@ -200,7 +211,7 @@ JSON `{"cod": <code>, "message": "...", "parameters": [...]}`:
 echo `lat`/`lon`, never the key — but `requests` exceptions include the URL, so
 redact anyway).
 
-### Fixture (pending key)
+### Fixture
 
-Live capture → `tests/fixtures/openweather_timeline_1day.json` once
-`OPENWEATHER_API_KEY` (One Call by Call subscribed) is in `.env`.
+None yet — capture `tests/fixtures/openweather_timeline_1day.json` after the
+key gets the One Call by Call subscription (see disabled note above).

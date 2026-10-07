@@ -34,7 +34,7 @@ Choices made where the brief was open. Change them here first, then in code.
 | D18 | Trigger thresholds are expressed as **"water when the plant got less than X% of its target rain"** (`min_rain_fraction`), not as a "deficit ratio". | A gardener can read and tune "less than 50% of target". |
 | D19 | **Rain since the reminder** counts dates *after* the reminder date through today. | The reminder is sent in the evening, so rain on the reminder day mostly fell before it. |
 | D20 | Defaults live in **one** place (`DEFAULT_WATERING` at the top of `config.py`). `config.example.yaml` shows the full `watering:` section with the same values and comments; a test keeps them in sync. | Humans edit the YAML; code has no hidden numbers. |
-| D21 | OpenWeather provider uses **One Call API 4.0** `timeline/1day` (verified 2026-10-07, see `docs/api-notes.md`), not 3.0: one endpoint gives history + today + tomorrow, `units=metric`, auth `appid`. Free "One Call by Call" subscription (1,000 calls/day). `temperature_avg_c` stays `None` (4.0 has no documented daily mean); ET₀ absent ⇒ heat falls back to temperature. | The plan's "unverified One Call 4.0" exists and is current; 4.0 is recommended for new integrations and avoids 3.0's split history/forecast endpoints. |
+| D21 | **OpenWeather provider is disabled for now.** Live-tested 2026-10-07: One Call 4.0 `timeline/1day`, One Call 3.0 `onecall` and `day_summary` all answer HTTP 401 ("requires the separate One Call by Call subscription"); free `2.5/forecast` answered "Invalid API key" and has no daily history anyway. `gardenwater/weather/openweather.py` is a documented stub, **not registered** in the fallback chain (which is Open-Meteo → WeatherAPI). Re-enable path: subscribe the key → capture fixture → implement per `docs/api-notes.md` → register in `service.py`. | Do not build a provider that cannot run. "Missing API key = skipped" (D7) extends naturally to "provider unavailable = skipped". Two working providers keep v1 shippable. |
 
 ---
 
@@ -290,7 +290,7 @@ These apply to every phase:
 - [ ] **Verify current official docs** for each provider; write `docs/api-notes.md` with: endpoint URL, auth method, required params, units, how to get past days, **today's daily total**, and **tomorrow's daily forecast**, field names for precipitation / temp avg / temp max / ET0, free-tier limits, error format, one trimmed sample response.
   - Open-Meteo: forecast endpoint with `past_days` and `daily=` variables (expected: precipitation sum, temperature max/mean, `et0_fao_evapotranspiration`); confirm `timezone` handling and that today's daily sum mixes observed and forecast values.
   - WeatherAPI.com: forecast + history endpoints; confirm history range on the free plan, day structure (`totalprecip_mm`, `avgtemp_c`, `maxtemp_c`), whether any ET0 exists. History is likely one request per day — fetch only dates missing from SQLite.
-  - OpenWeather: **One Call 4.0 existence, URL, auth, and subscription requirements are unverified.** If 4.0 does not exist or differs, use the current One Call version that does and record the change in §1. Confirm how to get historical and today's daily data (daily total vs. summing hourly) and ET0 availability.
+  - OpenWeather: ~~unverified~~ **verified 2026-10-07 — see D21**: One Call 4.0 exists (`timeline/1day`, history + forecast in one, `appid`, "One Call by Call" subscription) but the key got 401 on 4.0/3.0/day_summary, and `2.5/forecast` said invalid key. **Provider disabled for now** (D21); recorded in `docs/api-notes.md`.
 - [ ] Save trimmed real responses as `tests/fixtures/<provider>_*.json`.
 - **Done when:** `api-notes.md` answers, for each provider, "can it give history / today / tomorrow / temp / ET0?" with doc links, and fixtures exist.
 
@@ -310,7 +310,7 @@ These apply to every phase:
 - **Tests:** `test_watering.py` — #1–#9 plus examples A–E and Severe/Severe-low from the table; today's rain is counted in the window; scaled window with missing days; reminder streak reset by meaningful rain; zero target → NO_ACTION.
 
 ### Phase 4 — Weather providers
-- [ ] `weather/open_meteo.py`, `weatherapi.py`, `openweather.py` per `api-notes.md`. Each: `is_configured`, request with timeouts, status-code handling, parse → `WeatherData`, wrap every failure in `ProviderError` with a redacted short message.
+- [ ] `weather/open_meteo.py`, `weatherapi.py` per `api-notes.md`. Each: `is_configured`, request with timeouts, status-code handling, parse → `WeatherData`, wrap every failure in `ProviderError` with a redacted short message. (`openweather.py` stays a disabled stub per D21 — implement only if the subscription lands.)
 - [ ] Missing today's or tomorrow's precipitation → `ProviderError`.
 - **Tests:** `test_weather_parsers.py` — fixture → expected `DailyWeather` values per provider; malformed JSON; missing field; HTTP 401/429/500 via fake session; keys never present in error text.
 
