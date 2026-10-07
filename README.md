@@ -57,6 +57,9 @@ For each plant, on each run (plan §2, `gardenwater/watering.py`):
 Every decision carries a plain-sentence `reason` (shown by `--dry-run`, logged,
 and stored in SQLite).
 
+**Telegram messages are in Russian.** The `--dry-run` report, log lines and
+stored `reason`s stay English (developer-facing).
+
 ### Example
 
 Peach in summer: target 40 mm over 7 days, `water_need: high` (water below 65%

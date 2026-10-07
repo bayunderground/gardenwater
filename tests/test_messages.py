@@ -38,14 +38,14 @@ def make_decision(**overrides) -> PlantDecision:
 def test_single_water_plant_exact_text() -> None:
     text = watering_message([make_decision()])
     assert text == (
-        "🌱 Garden watering needed\n"
+        "🌱 Нужен полив\n"
         "\n"
         "Peach\n"
-        "• Season: summer\n"
-        "• Water need: high\n"
-        "• Rain last 7 days: 5 mm\n"
-        "• Tomorrow: 0 mm\n"
-        "• Status: watering recommended"
+        "• Сезон: лето\n"
+        "• Потребность в поливе: высокая\n"
+        "• Дождь за 7 дней: 5 мм\n"
+        "• Дождь завтра: 0 мм\n"
+        "• Статус: рекомендуется полив"
     )
 
 
@@ -55,9 +55,9 @@ def test_multi_plant_is_one_combined_message() -> None:
         make_decision(plant="tomato", season="autumn", water_need="low",
                       rain_7d_mm=4.87, tomorrow_rain_mm=12.5),
     ])
-    assert text.startswith("🌱 Garden watering needed\n\nPeach\n")
-    assert "\n\nTomato\n• Season: autumn\n• Water need: low\n" in text
-    assert "• Rain last 7 days: 4.87 mm\n• Tomorrow: 12.5 mm\n" in text
+    assert text.startswith("🌱 Нужен полив\n\nPeach\n")
+    assert "\n\nTomato\n• Сезон: осень\n• Потребность в поливе: низкая\n" in text
+    assert "• Дождь за 7 дней: 4.87 мм\n• Дождь завтра: 12.5 мм\n" in text
 
 
 def test_follow_up_only_uses_reminder_header_and_rain_line() -> None:
@@ -69,15 +69,16 @@ def test_follow_up_only_uses_reminder_header_and_rain_line() -> None:
     reminder = ReminderState("peach", date(2026, 10, 5), reminders_count=2)
     text = watering_message([decision], {"peach": reminder})
     assert text == (
-        "🌱 Garden watering reminder\n"
+        "🌱 Напоминание о поливе\n"
         "\n"
         "Peach\n"
-        "• Season: summer\n"
-        "• Water need: high\n"
-        "• Rain last 7 days: 5 mm\n"
-        "• Tomorrow: 0 mm\n"
-        "• Status: still appears to need watering\n"
-        "• No meaningful rain (1.5 mm) since the previous reminder (2026-10-05)"
+        "• Сезон: лето\n"
+        "• Потребность в поливе: высокая\n"
+        "• Дождь за 7 дней: 5 мм\n"
+        "• Дождь завтра: 0 мм\n"
+        "• Статус: всё ещё, похоже, требует полива\n"
+        "• Без существенного дождя (1.5 мм) "
+        "с предыдущего напоминания (2026-10-05)"
     )
 
 
@@ -87,10 +88,16 @@ def test_mixed_water_and_follow_up_uses_needed_header() -> None:
         make_decision(plant="basil", decision=Decision.FOLLOW_UP,
                       rain_since_reminder_mm=0.0),
     ])
-    assert text.startswith("🌱 Garden watering needed\n")
+    assert text.startswith("🌱 Нужен полив\n")
     assert "Peach\n" in text and "Basil\n" in text
-    assert "watering recommended" in text
-    assert "still appears to need watering" in text
+    assert "рекомендуется полив" in text
+    assert "всё ещё, похоже, требует полива" in text
+
+
+def test_unknown_enum_values_pass_through_untranslated() -> None:
+    text = watering_message([make_decision(season="monsoon", water_need="thirsty")])
+    assert "• Сезон: monsoon" in text
+    assert "• Потребность в поливе: thirsty" in text
 
 
 def test_non_notifying_decisions_produce_no_message() -> None:
@@ -112,30 +119,40 @@ def test_messages_never_claim_the_user_did_or_did_not_water() -> None:
     ]
     for text in texts:
         lowered = text.lower()
+        # wording rule in both languages: never claim the user did/didn't water
         assert "didn't water" not in lowered
         assert "did not water" not in lowered
         assert "you didn" not in lowered
+        assert "не полил" not in lowered
+        assert "не поливал" not in lowered
+        assert "вы не" not in lowered
 
 
 def test_provider_warning_one_liner() -> None:
     assert provider_warning("weatherapi", "HTTP 429: rate limit") == (
-        "⚠️ weatherapi failed: HTTP 429: rate limit (using fallback)"
+        "⚠️ weatherapi: ошибка — HTTP 429: rate limit "
+        "(используется резервный источник)"
     )
 
 
 def test_provider_warning_error_is_clipped_to_200_chars() -> None:
     text = provider_warning("p", "x" * 500)
-    assert len(text) <= 200 + len("⚠️ p failed:  (using fallback)")
-    error_part = text.removeprefix("⚠️ p failed: ").removesuffix(" (using fallback)")
+    assert len(text) <= 200 + len(
+        "⚠️ p: ошибка —  (используется резервный источник)"
+    )
+    error_part = text.removeprefix("⚠️ p: ошибка — ").removesuffix(
+        " (используется резервный источник)"
+    )
     assert len(error_part) == 200
     assert error_part.endswith("…")
 
 
 def test_all_failed_and_insufficient_texts() -> None:
     assert all_failed_message() == (
-        "⚠️ Garden watering check failed: no weather data available."
+        "⚠️ Проверка полива не выполнена: данные о погоде недоступны."
     )
     assert insufficient_data_message() == (
-        "⚠️ Garden watering check failed\n"
-        "Not enough recent weather data to decide."
+        "⚠️ Проверка полива не выполнена\n"
+        "Недостаточно свежих данных о погоде, "
+        "чтобы решить, нужен ли полив."
     )

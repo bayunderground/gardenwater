@@ -1,7 +1,9 @@
 """Pure message formatting — no I/O, no clock (CLAUDE.md design rule).
 
+Telegram texts are in Russian (D27) — the only user-facing surface; the
+`--dry-run` report, log lines and DB `reason` stay English (developer-facing).
 Wording rule: never claim the user did or did not water. Follow-up plants say
-"still appears to need watering" (plan §Messages, D24 for the warning texts).
+"всё ещё, похоже, требует полива" (plan §Messages, D24/D27 for the texts).
 """
 
 from __future__ import annotations
@@ -15,10 +17,14 @@ from gardenwater.models import Decision, PlantDecision, ReminderState
 if TYPE_CHECKING:
     from gardenwater.config import AppConfig
 
-WATERING_HEADER = "🌱 Garden watering needed"
-FOLLOW_UP_HEADER = "🌱 Garden watering reminder"
-STATUS_WATER = "• Status: watering recommended"
-STATUS_FOLLOW_UP = "• Status: still appears to need watering"
+WATERING_HEADER = "🌱 Нужен полив"
+FOLLOW_UP_HEADER = "🌱 Напоминание о поливе"
+STATUS_WATER = "• Статус: рекомендуется полив"
+STATUS_FOLLOW_UP = "• Статус: всё ещё, похоже, требует полива"
+
+# Config enums are English identifiers; translate at display time (D27).
+SEASON_RU = {"spring": "весна", "summer": "лето", "autumn": "осень", "winter": "зима"}
+WATER_NEED_RU = {"low": "низкая", "medium": "средняя", "high": "высокая"}
 
 
 def watering_message(
@@ -43,17 +49,18 @@ def watering_message(
 def _plant_block(decision: PlantDecision, reminder: ReminderState | None) -> str:
     lines = [
         decision.plant.capitalize(),
-        f"• Season: {decision.season}",
-        f"• Water need: {decision.water_need}",
-        f"• Rain last 7 days: {decision.rain_7d_mm:g} mm",
-        f"• Tomorrow: {decision.tomorrow_rain_mm:g} mm",
+        f"• Сезон: {SEASON_RU.get(decision.season, decision.season)}",
+        f"• Потребность в поливе: "
+        f"{WATER_NEED_RU.get(decision.water_need, decision.water_need)}",
+        f"• Дождь за 7 дней: {decision.rain_7d_mm:g} мм",
+        f"• Дождь завтра: {decision.tomorrow_rain_mm:g} мм",
     ]
     if decision.decision == Decision.FOLLOW_UP:
         lines.append(STATUS_FOLLOW_UP)
         if reminder is not None and decision.rain_since_reminder_mm is not None:
             lines.append(
-                f"• No meaningful rain ({decision.rain_since_reminder_mm:g} mm) "
-                f"since the previous reminder ({reminder.last_notified_on.isoformat()})"
+                f"• Без существенного дождя ({decision.rain_since_reminder_mm:g} мм) "
+                f"с предыдущего напоминания ({reminder.last_notified_on.isoformat()})"
             )
     else:
         lines.append(STATUS_WATER)
@@ -62,19 +69,19 @@ def _plant_block(decision: PlantDecision, reminder: ReminderState | None) -> str
 
 def provider_warning(name: str, error: str) -> str:
     """Warn-once one-liner for a provider that went ok → failed (D24)."""
-    return f"⚠️ {name} failed: {_clip(error)} (using fallback)"
+    return f"⚠️ {name}: ошибка — {_clip(error)} (используется резервный источник)"
 
 
 def all_failed_message() -> str:
-    """Every provider failed — the system is blind (D9, D24)."""
-    return "⚠️ Garden watering check failed: no weather data available."
+    """Every provider failed — the system is blind (D9, D24, D27)."""
+    return "⚠️ Проверка полива не выполнена: данные о погоде недоступны."
 
 
 def insufficient_data_message() -> str:
     """Window below `min_history_days` (D6)."""
     return (
-        "⚠️ Garden watering check failed\n"
-        "Not enough recent weather data to decide."
+        "⚠️ Проверка полива не выполнена\n"
+        "Недостаточно свежих данных о погоде, чтобы решить, нужен ли полив."
     )
 
 

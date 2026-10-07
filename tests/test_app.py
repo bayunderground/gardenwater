@@ -128,7 +128,7 @@ def test_all_providers_failing_exits_1_with_all_failed_message(config, env, tmp_
 
     assert exit_code == 1
     assert send.calls == [
-        "⚠️ Garden watering check failed: no weather data available."
+        "⚠️ Проверка полива не выполнена: данные о погоде недоступны."
     ]
 
 
@@ -159,8 +159,8 @@ def test_three_day_scenario_water_follow_up_then_no_action(config, env, tmp_path
                 send=send)
     assert exit1 == 0
     assert len(send.calls) == 1
-    assert send.calls[0].startswith("🌱 Garden watering needed")
-    assert "watering recommended" in send.calls[0]
+    assert send.calls[0].startswith("🌱 Нужен полив")
+    assert "рекомендуется полив" in send.calls[0]
     assert get_reminder(_conn(db), "peach").reminders_count == 1
 
     # Day 2: still dry, reminder open → FOLLOW_UP (second message).
@@ -170,8 +170,8 @@ def test_three_day_scenario_water_follow_up_then_no_action(config, env, tmp_path
                 send=send)
     assert exit2 == 0
     assert len(send.calls) == 2
-    assert send.calls[1].startswith("🌱 Garden watering reminder")
-    assert "still appears to need watering" in send.calls[1]
+    assert send.calls[1].startswith("🌱 Напоминание о поливе")
+    assert "всё ещё, похоже, требует полива" in send.calls[1]
     assert get_reminder(_conn(db), "peach").reminders_count == 2
 
     # Day 3: 30 mm of rain (75% of target) → NO_ACTION, no message, streak gone.
@@ -218,8 +218,10 @@ def test_provider_failure_warning_sent_once_across_two_runs(config, env, tmp_pat
     )
     assert exit1 == 0
     assert len(send.calls) == 2
-    assert send.calls[0].startswith("🌱 Garden watering needed")
-    assert send.calls[1] == "⚠️ primary failed: down (using fallback)"
+    assert send.calls[0].startswith("🌱 Нужен полив")
+    assert send.calls[1] == (
+        "⚠️ primary: ошибка — down (используется резервный источник)"
+    )
 
     # Run 2: primary still failing → fallback works, but no second warning.
     exit2 = run(

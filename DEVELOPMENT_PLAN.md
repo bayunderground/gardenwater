@@ -40,6 +40,7 @@ Choices made where the brief was open. Change them here first, then in code.
 | D24 | The brief's exact texts for the provider-warning and all-failed messages are not in the repo, so they are minimal one-liners (user-chosen 2026-10-07): all-failed `⚠️ Garden watering check failed: no weather data available.` and provider warning `⚠️ <provider> failed: <error> (using fallback)` — error redacted, truncated to ~200 chars. Insufficient-data keeps the two-line text from §Messages. | Ambiguous requirement → simpler behaviour + assumption recorded (working agreement). Easy to reword in `messages.py` only. |
 | D25 | Post-v1 addition (user request 2026-10-07): standalone `--prune [--keep-days N]` mode for cron — deletes `weather_daily` + `watering_decisions` older than N days (default 30), clamped to at least `recent_days` so the rain window survives. `reminder_state` and `provider_status` are current state, never pruned. No weather fetch, no Telegram, exit 0; `--today` honoured for tests. | A cron-maintained database should be cleanable without side effects; retention default and clamp are the simplest safe choices (working agreement: prefer simpler behaviour + record it here). |
 | D26 | **`plant.count` removed from the schema** (user choice 2026-10-07): it was validated but never read (dropping D14's "reserved for later"). `plant.type` stays as a human label. Old configs still containing `count:` load fine — unknown keys on plant entries are ignored (unknown keys *inside* `watering:` remain rejected, that's typo protection). | Dead configuration is noise in a small project; one less required line for humans and LLMs to maintain. |
+| D27 | **All Telegram message texts are in Russian** (user request 2026-10-07): headers, per-plant lines, status lines, provider warning, all-failed and insufficient-data texts, with the `season` / `water_need` enum values translated at format time in `messages.py` only. `--dry-run`'s report, log lines and the DB `reason` stay English (developer-facing) — except the two failure texts, which `--dry-run` prints in Russian because that branch prints the very message that would be sent. Provider error snippets pass through untranslated (technical detail, still redacted + clipped to 200 chars). Supersedes D24's English wording. | Telegram is the only user-facing surface; one formatting module keeps the language switch in a single file. |
 
 ---
 
@@ -246,25 +247,26 @@ Reminder state rules: row created/updated only after a **successful** send;
 is produced because meaningful rain ended the streak (re-created with count 1 after sending).
 `POSTPONE` leaves it untouched.
 
-### Messages (`messages.py`, plain text)
+### Messages (`messages.py`, plain text, Russian — D27)
 
 ```
-🌱 Garden watering needed
+🌱 Нужен полив
 
 Peach
-• Season: summer
-• Water need: high
-• Rain last 7 days: 5 mm
-• Tomorrow: 0 mm
-• Status: watering recommended
+• Сезон: лето
+• Потребность в поливе: высокая
+• Дождь за 7 дней: 5 мм
+• Дождь завтра: 0 мм
+• Статус: рекомендуется полив
 ```
 
-Follow-up plants use `• Status: still appears to need watering` and
-`• No meaningful rain (X mm) since the previous reminder (YYYY-MM-DD)`.
-If every plant in the message is a follow-up, the header is `🌱 Garden watering reminder`.
-Provider warning and all-failed texts per D24 (error text redacted and truncated to ~200 chars).
-Insufficient data (D6): `⚠️ Garden watering check failed` + `Not enough recent weather data to decide.`
-Never use wording that claims the user did or did not water.
+Follow-up plants use `• Статус: всё ещё, похоже, требует полива` and
+`• Без существенного дождя (X мм) с предыдущего напоминания (YYYY-MM-DD)`.
+If every plant in the message is a follow-up, the header is `🌱 Напоминание о поливе`.
+Provider warning `⚠️ <provider>: ошибка — <error> (используется резервный источник)`
+and all-failed texts per D24/D27 (error text redacted and truncated to ~200 chars).
+Insufficient data (D6): `⚠️ Проверка полива не выполнена` + `Недостаточно свежих данных о погоде, чтобы решить, нужен ли полив.`
+Never use wording that claims the user did or did not water — in any language.
 
 ---
 
