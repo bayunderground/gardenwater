@@ -129,6 +129,10 @@ mirrored in `config.example.yaml`):
 | database schema | `gardenwater/database.py` (`SCHEMA`) |
 | cron schedule | your crontab (see below) |
 
+To add or edit plants with an AI assistant, start a new chat with
+[`README-LLM.md`](README-LLM.md) (the schema + rules the assistant must
+follow) plus your current `config.yaml`, and describe the change in plain text.
+
 ## Weather providers
 
 Fallback chain (first success wins):
