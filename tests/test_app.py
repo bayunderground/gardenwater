@@ -10,15 +10,22 @@ from datetime import date, timedelta
 
 import pytest
 
-from gardenwater.app import run
+from gardenwater.app import main, prune, run
 from gardenwater.config import load_config
 from gardenwater.database import (
+    ProviderStatus,
     connect,
     decisions_for_date,
+    get_provider_status,
     get_reminder,
     init_schema,
     notification_sent_on,
+    save_provider_status,
+    set_reminder,
+    upsert_decision,
+    upsert_weather,
 )
+from gardenwater.models import Decision, PlantDecision, ReminderState
 from gardenwater.telegram import TelegramError
 from gardenwater.weather.base import ProviderError
 from gardenwater.weather.models import DailyWeather
@@ -233,3 +240,101 @@ def _conn(db_path):
     conn = connect(db_path)
     init_schema(conn)
     return conn
+
+
+# --- prune (--prune maintenance option) --------------------------------------
+
+
+def _plant_decision(decision_date: date) -> PlantDecision:
+    return PlantDecision(
+        decision_date=decision_date, plant="peach", season="summer",
+        water_need="high", decision=Decision.WATER, reason="dry",
+        rain_7d_mm=5.0, effective_target_mm=40.0, rain_fraction=0.125,
+        deficit_mm=35.0, heat_factor=1.0, tomorrow_rain_mm=0.0,
+        rain_since_reminder_mm=None,
+    )
+
+
+def _seed(conn, today: date, weather_days: int, decision_offsets: tuple[int, ...]):
+    for i in range(weather_days):
+        upsert_weather(
+            conn,
+            DailyWeather(date=today - timedelta(days=i), precipitation_mm=1.0),
+            provider="p",
+        )
+    for offset in decision_offsets:
+        upsert_decision(conn, _plant_decision(today - timedelta(days=offset)))
+    set_reminder(conn, ReminderState("peach", today - timedelta(days=1), 2))
+    save_provider_status(
+        conn, ProviderStatus(provider="p", state="ok", updated_at="2026-01-01T00:00:00")
+    )
+
+
+def test_prune_removes_old_history_but_keeps_current_state(config, tmp_path):
+    db = tmp_path / "garden.db"
+    conn = connect(db)
+    init_schema(conn)
+    _seed(conn, DAY1, weather_days=40, decision_offsets=(0, 35))
+
+    exit_code = prune(config, db, keep_days=30, today=DAY1)
+
+    assert exit_code == 0
+    rows = conn.execute(
+        "SELECT date FROM weather_daily ORDER BY date"
+    ).fetchall()
+    dates = [r["date"] for r in rows]
+    assert len(dates) == 30  # today back to 29 days ago
+    assert dates[0] == (DAY1 - timedelta(days=29)).isoformat()
+    assert dates[-1] == DAY1.isoformat()
+
+    kept = {r["decision_date"] for r in conn.execute(
+        "SELECT decision_date FROM watering_decisions"
+    )}
+    assert kept == {DAY1.isoformat()}  # the 35-day-old row is gone
+
+    # current state is never pruned
+    assert get_reminder(conn, "peach") == ReminderState("peach", DAY1 - timedelta(days=1), 2)
+    assert get_provider_status(conn, "p").state == "ok"
+
+
+def test_prune_never_drops_below_the_rain_window(config, tmp_path):
+    """--keep-days 1 is clamped to recent_days, so the window survives."""
+    db = tmp_path / "garden.db"
+    conn = connect(db)
+    init_schema(conn)
+    _seed(conn, DAY1, weather_days=10, decision_offsets=())
+
+    prune(config, db, keep_days=1, today=DAY1)
+
+    dates = [r["date"] for r in conn.execute(
+        "SELECT date FROM weather_daily ORDER BY date"
+    )]
+    assert len(dates) == config.thresholds.recent_days  # 7-day window intact
+    assert dates[0] == (DAY1 - timedelta(days=6)).isoformat()
+
+
+def test_prune_via_cli_is_standalone(config_file, tmp_path, capsys):
+    db = tmp_path / "garden.db"
+    conn = connect(db)
+    init_schema(conn)
+    _seed(conn, DAY1, weather_days=40, decision_offsets=(0, 35))
+
+    exit_code = main([
+        "--prune",
+        "--config", str(config_file),
+        "--db", str(db),
+        "--today", DAY1.isoformat(),
+    ])
+
+    assert exit_code == 0
+    remaining = conn.execute("SELECT COUNT(*) c FROM weather_daily").fetchone()["c"]
+    assert remaining == 30
+    # no Telegram message, no weather fetch — prune never calls send/run
+    assert "prune:" in capsys.readouterr().out
+
+
+@pytest.fixture()
+def config_file(tmp_path) -> object:
+    path = tmp_path / "config.yaml"
+    path.write_text(CONFIG_YAML)
+    return path

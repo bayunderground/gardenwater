@@ -14,7 +14,7 @@ import logging
 import os
 import sys
 from collections.abc import Callable, Sequence
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -27,6 +27,7 @@ from gardenwater.database import (
     init_schema,
     mark_notifications,
     notification_sent_on,
+    prune_old_records,
     read_window,
     save_provider_status,
     set_reminder,
@@ -87,12 +88,45 @@ def main(argv: Sequence[str] | None = None) -> int:
         "garden-water starting: config=%s db=%s dry_run=%s secrets=%s",
         args.config, args.db, args.dry_run, _secrets_note(),
     )
+    if args.prune:
+        return prune(
+            config, args.db, keep_days=args.keep_days,
+            today=_parse_today(args.today),
+        )
     return run(
         config,
         args.db,
         dry_run=args.dry_run,
         today=_parse_today(args.today),
     )
+
+
+def prune(
+    config: AppConfig,
+    db_path: str | Path,
+    *,
+    keep_days: int = 30,
+    today: date | None = None,
+) -> int:
+    """Delete old history rows and exit — no weather, no Telegram (cron-able).
+
+    Keeps the newest `keep_days` days (today included), never fewer than
+    `recent_days`, so the rain window can't be destroyed by an over-eager
+    `--keep-days`. `reminder_state` and `provider_status` are never touched.
+    """
+    keep = max(keep_days, config.thresholds.recent_days)
+    conn = connect(db_path)
+    init_schema(conn)
+    zone = ZoneInfo(config.location.timezone)
+    today = today or datetime.now(zone).date()
+    cutoff = today - timedelta(days=keep - 1)  # keep = days from cutoff..today
+    weather_rows, decision_rows = prune_old_records(conn, cutoff)
+    log.info(
+        "prune: kept %d day(s) (from %s); removed %d weather row(s), "
+        "%d decision row(s)",
+        keep, cutoff.isoformat(), weather_rows, decision_rows,
+    )
+    return 0
 
 
 def run(
@@ -288,6 +322,11 @@ def _parse_args(argv: Sequence[str] | None) -> argparse.Namespace:
     parser.add_argument("--db", default=DEFAULT_DB, help="SQLite database path")
     parser.add_argument("--dry-run", action="store_true",
                         help="live weather, but print instead of sending")
+    parser.add_argument("--prune", action="store_true",
+                        help="delete old weather/decision history and exit")
+    parser.add_argument("--keep-days", type=int, default=30, metavar="N",
+                        help="days to keep with --prune "
+                             "(default 30, never fewer than recent_days)")
     parser.add_argument("--today", metavar="YYYY-MM-DD",
                         help="override today's date (testing only)")
     parser.add_argument("-v", "--verbose", action="store_true",

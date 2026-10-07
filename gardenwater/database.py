@@ -340,3 +340,23 @@ def set_reminder(conn: sqlite3.Connection, reminder: ReminderState) -> None:
 def clear_reminder(conn: sqlite3.Connection, plant: str) -> None:
     conn.execute("DELETE FROM reminder_state WHERE plant = ?", (plant,))
     conn.commit()
+
+
+# ---------------------------------------------------------------------------
+# Pruning — remove old history; current state is never touched.
+# ---------------------------------------------------------------------------
+def prune_old_records(conn: sqlite3.Connection, cutoff: date) -> tuple[int, int]:
+    """Delete history strictly before `cutoff`; return `(weather, decisions)` counts.
+
+    Only the two history tables are pruned. `reminder_state` (open streaks) and
+    `provider_status` (outage bookkeeping) hold *current* state and are kept.
+    """
+    weather = conn.execute(
+        "DELETE FROM weather_daily WHERE date < ?", (cutoff.isoformat(),)
+    ).rowcount
+    decisions = conn.execute(
+        "DELETE FROM watering_decisions WHERE decision_date < ?",
+        (cutoff.isoformat(),),
+    ).rowcount
+    conn.commit()
+    return weather, decisions
