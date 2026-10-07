@@ -318,8 +318,8 @@ These apply to every phase:
 - **Tests:** `test_open_meteo.py` + `test_weatherapi.py` (split per provider instead of one `test_weather_parsers.py`) — fixture → expected `DailyWeather` values per provider; malformed JSON; missing field; HTTP 401/429/500 via fake session; keys never present in error text.
 
 ### Phase 5 — Weather service (fallback + status)
-- [ ] `weather/service.py`: try providers in priority order, skip unconfigured, persist `history` + `today` (not forecast) to `weather_daily`, update `provider_status`, return `(WeatherData, failures)`.
-- [ ] Failure-notification decision: `ok → failed` ⇒ notify once; still failed ⇒ silent; recovered ⇒ reset.
+- [x] `weather/service.py`: try providers in priority order, skip unconfigured, persist `history` + `today` (not forecast) to `weather_daily`, update `provider_status`, return `(WeatherData, failures)` (`ServiceReport` — plus warn-once transition info).
+- [x] Failure-notification decision: `ok → failed` ⇒ notify once; still failed ⇒ silent; recovered ⇒ reset.
 - **Tests:** `test_weather_service.py` — fallback order (#12); mixed-provider days in DB; failure warning once not daily (#13); all fail raises `AllProvidersFailed`; unconfigured provider skipped silently.
 
 ### Phase 6 — Telegram and messages
