@@ -53,7 +53,9 @@ class PlantDecision:
     heat_factor: float
     tomorrow_rain_mm: float
     rain_since_reminder_mm: float | None
-    provider: str
+    # Filled by the app AFTER deciding (watering.py must not know providers,
+    # CLAUDE.md rule 1): `dataclasses.replace(decision, provider=...)`.
+    provider: str = ""
     notification_type: str | None = None  # None | "WATER" | "FOLLOW_UP"
     notification_status: str = "none"     # "none" | "sent" | "failed"
 
