@@ -1,6 +1,13 @@
 .env
+.env.*
+!.env.example
 venv
 .venv
+
+# garden-water app state and local config
+config.yaml
+*.db
+*.sqlite3
 *.pyc
 db.sqlite3
 .idea
