@@ -55,8 +55,13 @@ from gardenwater.watering import InsufficientDataError, decide_plant
 
 log = logging.getLogger("gardenwater")
 
-DEFAULT_CONFIG = "config.yaml"
-DEFAULT_DB = "garden.db"
+# Defaults resolve next to the package (the repo root where garden_water.py
+# lives), so cron works from any working directory (plan Phase 8): `.env`,
+# `config.yaml` and the database all sit beside the script.
+ROOT = Path(__file__).resolve().parent.parent
+DEFAULT_CONFIG = str(ROOT / "config.yaml")
+DEFAULT_DB = str(ROOT / "garden.db")
+DOTENV = ROOT / ".env"
 
 SendFn = Callable[[str, str, str], None]
 
@@ -72,7 +77,7 @@ def default_providers() -> list[WeatherProvider]:
 def main(argv: Sequence[str] | None = None) -> int:
     args = _parse_args(argv)
     _configure_logging(args.verbose)
-    load_dotenv(Path(".env"))
+    load_dotenv(DOTENV)
     try:
         config = load_config(Path(args.config))
     except ConfigError as exc:
